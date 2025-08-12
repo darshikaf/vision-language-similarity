@@ -3,6 +3,7 @@ import logging
 import time
 
 from service.core import EvaluationResult, MinimalOpenCLIPEvaluator
+from service.observability.prometheus_middleware import get_metrics_middleware
 
 from .schema import (
     BatchEvaluationRequest,
@@ -56,6 +57,30 @@ class EvaluationHandler:
         # Perform evaluation
         result = await evaluator.evaluate_single(request.image_input, request.text_prompt)
 
+        try:
+            metrics = get_metrics_middleware()
+            
+            # Record CLIP score distribution
+            if result.clip_score is not None and result.error is None:
+                metrics.record_clip_score(result.clip_score, model_config)
+            
+            # Record evaluation errors
+            if result.error is not None:
+                error_type = "evaluation_error"
+                # Try to extract specific error type from error message
+                if "network" in result.error.lower() or "url" in result.error.lower():
+                    error_type = "network_error"
+                elif "image" in result.error.lower():
+                    error_type = "image_processing_error"
+                elif "model" in result.error.lower():
+                    error_type = "model_error"
+                
+                metrics.record_evaluation_error(error_type, model_config)
+                
+        except RuntimeError:
+            # Metrics middleware not initialized - continue without metrics
+            logger.debug("Metrics middleware not available")
+
         return self._evaluation_result_to_response(result, model_config)
 
     async def evaluate_batch(self, request: BatchEvaluationRequest) -> BatchEvaluationResponse:
@@ -91,6 +116,13 @@ class EvaluationHandler:
         total_processing_time = (time.time() - start_time) * 1000
         successful_results = [r for r in final_results if r.error is None]
         failed_results = [r for r in final_results if r.error is not None]
+
+        # Record batch metrics
+        try:
+            metrics = get_metrics_middleware()
+            metrics.record_batch_size(len(request.evaluations))
+        except RuntimeError:
+            logger.debug("Metrics middleware not available")
 
         return BatchEvaluationResponse(
             results=final_results,

@@ -17,6 +17,7 @@ from tqdm import tqdm
 from .device_manager import DeviceManager
 from .image_loader import ImageLoader
 from .models import EvaluationResult
+from ..observability.prometheus_middleware import get_metrics_middleware
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -53,6 +54,14 @@ class MinimalOpenCLIPEvaluator:
         self.model_name = model_name
         self.pretrained = pretrained
         self.cache_dir = cache_dir or str(Path.home() / ".cache" / "openclip")
+        
+        # Determine model config for metrics
+        if model_name == "ViT-B-32":
+            self.model_config = "fast"
+        elif model_name == "ViT-L-14":
+            self.model_config = "accurate"
+        else:
+            self.model_config = "custom"
 
         # Setup device and precision
         self.device = DeviceManager.get_optimal_device(device)
@@ -176,6 +185,17 @@ class MinimalOpenCLIPEvaluator:
                 async with ImageLoader() as loader:
                     image = await loader.load_image(image_input)
 
+            # Determine source type for metrics
+            if isinstance(image_input, str):
+                if image_input.startswith(("http://", "https://")):
+                    source_type = "url"
+                elif image_input.startswith("data:image/"):
+                    source_type = "base64"
+                else:
+                    source_type = "file"
+            else:
+                source_type = "pil_image"
+
             # Run PyTorch inference in thread pool
             loop = asyncio.get_event_loop()
             raw_cosine, inference_time = await loop.run_in_executor(
@@ -184,6 +204,21 @@ class MinimalOpenCLIPEvaluator:
 
             clip_score = self._calculate_clip_score(raw_cosine)
             total_time = (time.time() - start_time) * 1000
+
+            # Record metrics (safely handle missing middleware)
+            try:
+                metrics = get_metrics_middleware()
+                
+                # Record inference timing (using inference_time in seconds)
+                metrics.record_inference_time(inference_time / 1000, self.model_config, self.device.type)
+                
+                # Record image processing time (total_time - inference_time)
+                image_processing_time = (total_time - inference_time) / 1000
+                metrics.record_image_processing_time(image_processing_time, source_type)
+                
+            except (ImportError, RuntimeError):
+                # Metrics middleware not available - continue without metrics
+                pass
 
             return EvaluationResult(
                 image_path=str(image_input),

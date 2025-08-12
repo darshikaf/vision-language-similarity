@@ -19,5 +19,4 @@ RUN if [ -n "${VERSION}" ]; then echo "${VERSION}" > service/_version; fi
 # Expose port
 EXPOSE 8000
 
-# Run the application (following ai_reporter pattern)
 CMD ["uvicorn", "service.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,17 @@
+# Vision-Language Similarity Service Load Test URLs
+# Health and metrics endpoints
+/evaluator/health
+/evaluator/v1/evaluation/health
+/evaluator/metrics
+
+# API endpoints (GET requests)
+/evaluator/v1/evaluation/models
+
+# Root endpoint
+/evaluator/
+/
+
+# Note: POST endpoints require JSON payloads and are harder to test with simple curl
+# They would need more sophisticated load testing tools like:
+# /evaluator/v1/evaluation/single (requires image_input and text_prompt)
+# /evaluator/v1/evaluation/batch (requires array of evaluations)

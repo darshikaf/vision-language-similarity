@@ -1,0 +1,127 @@
+version: '3.8'
+
+services:
+  vision-similarity-service:
+    image: local/vision_language_similarity_service:latest
+    ports:
+      - "8000:8000"
+    labels:
+      - "logging=promtail"
+    environment:
+      - OTEL_LOG_LEVEL=info
+      - OTEL_SERVICE_NAME=vision-similarity-service
+      - OTEL_EXPORTER_OTLP_INSECURE=true
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
+      - OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=otel-collector:4317
+      - OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=grpc
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+    command: uvicorn service.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - otel-collector
+    networks:
+      - observability
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./otel-collector.yml:/etc/otel-collector-config.yml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8889:8889"   # Prometheus metrics
+    depends_on:
+      - prometheus
+    networks:
+      - observability
+
+  # Prometheus for metrics storage
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.enable-remote-write-receiver'  # Enable remote write for OTel Collector
+      - '--enable-feature=exemplar-storage'  # Enable exemplars for trace correlation
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - observability
+
+  # Loki for centralized logging
+  loki:
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - observability
+
+  # Promtail for log collection
+  promtail:
+    image: grafana/promtail:2.9.0
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yaml:/etc/promtail/config.yml:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - observability
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:10.2.2
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=grafana
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+    volumes:
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./grafana_dashboard.json:/var/lib/grafana/dashboards/vision-similarity.json:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - observability
+
+  # Load Generator for testing
+  load-generator:
+    image: curlimages/curl:8.5.0
+    volumes:
+      - ./load_gen.sh:/load_gen.sh:ro
+      - ./urls.txt:/urls.txt:ro
+    command: >
+      sh -c "chmod +x /load_gen.sh && /load_gen.sh"
+    depends_on:
+      - vision-similarity-service
+    networks:
+      - observability
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  observability:
+    driver: bridge

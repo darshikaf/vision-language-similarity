@@ -139,6 +139,7 @@ tests/integration/.DS_Store
 
 # dev
 .devcontainer
+uv.lock
 
 # tempo data
 tempo-data/

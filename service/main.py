@@ -3,6 +3,10 @@ from starlette.responses import JSONResponse
 
 from service import evaluation
 from service.constants import APP_NAME, APP_TITLE, PATH_PREFIX
+from service.observability.prometheus_middleware import (
+    PrometheusMiddleware,
+    metrics_endpoint,
+)
 
 app = FastAPI(
     title=APP_TITLE,
@@ -11,6 +15,12 @@ app = FastAPI(
     openapi_url=f"{PATH_PREFIX}/openapi.json",
     description="Vision-Language similarity evaluation service using OpenCLIP models",
 )
+
+# Add Prometheus middleware
+app.add_middleware(PrometheusMiddleware, app_name=APP_NAME)
+
+# Add metrics endpoint
+app.add_route(f"{PATH_PREFIX}/metrics", metrics_endpoint)
 
 # Include routers
 app.include_router(evaluation.router, prefix=PATH_PREFIX)

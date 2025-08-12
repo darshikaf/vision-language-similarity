@@ -1,0 +1,55 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    url: http://prometheus:9090
+    isDefault: true
+    access: proxy
+    editable: true
+    jsonData:
+      httpMethod: POST
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+          url: http://localhost:3200/explore?left=%7B%22datasource%22:%22tempo%22,%22queries%22:%5B%7B%22query%22:%22$${__value.raw}%22%7D%5D%7D
+    version: 1
+
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    url: http://tempo:3200
+    access: proxy
+    editable: true
+    jsonData:
+      tracesToMetrics:
+        datasourceUid: 'prometheus'
+        spanStartTimeShift: '-1h'  
+        spanEndTimeShift: '1h'
+        tags: [{ key: 'service.name', value: 'service' }, { key: 'job' }]
+        queries:
+          - name: 'Request Rate'
+            query: 'sum(rate(vision_similarity_requests_total{$$__tags}[5m]))'
+          - name: 'Request Duration'
+            query: 'histogram_quantile(0.9, sum(rate(vision_similarity_requests_duration_seconds_bucket{$$__tags}[5m])) by (le))'
+      serviceMap:
+        datasourceUid: 'prometheus'
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      spanBar:
+        type: 'Tag'
+        tag: 'http.path'
+    version: 1
+
+  - name: Loki
+    type: loki
+    uid: loki
+    url: http://loki:3100
+    access: proxy
+    editable: true
+    jsonData:
+      maxLines: 1000
+    version: 1
