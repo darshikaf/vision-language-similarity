@@ -1,0 +1,20 @@
+name: vision-language-similarity-local
+services:
+  evaluator:
+    image: ${IMAGE_NAME_LATEST}
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      # Mount cache directory to persist model downloads
+      - model_cache:/root/.cache/openclip
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/evaluator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  model_cache:

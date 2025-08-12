@@ -1,0 +1,22 @@
+name: vision-language-similarity-service
+services:
+  evaluator:
+    build:
+      context: ..
+      dockerfile: docker/service.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      # Mount cache directory to persist model downloads
+      - model_cache:/root/.cache/openclip
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/evaluator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  model_cache:
