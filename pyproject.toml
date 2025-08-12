@@ -24,6 +24,10 @@ dependencies = [
     "requests>=2.31.0",
     "tqdm>=4.65.0",
     
+    # Async dependencies
+    "httpx>=0.24.0",  # Async HTTP client
+    "aiofiles>=23.0.0",  # Async file operations
+    
     # Additional service dependencies
     "python-multipart>=0.0.6",  # For file uploads if needed
     "gunicorn>=21.2.0",  # For production deployment

@@ -23,10 +23,9 @@ WORKDIR /app
 
 # Copy dependency files
 COPY pyproject.toml .
-COPY uv.lock .
 
-# Install dependencies using uv with lockfile for reproducibility
-RUN uv sync --frozen --no-dev
+# Install dependencies directly from pyproject.toml
+RUN uv sync --no-dev
 
 # Create cache directories
 RUN mkdir -p /root/.cache/openclip

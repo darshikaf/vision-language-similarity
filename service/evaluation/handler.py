@@ -1,10 +1,6 @@
-import base64
-import io
-import tempfile
+import asyncio
+import logging
 import time
-from pathlib import Path
-
-from PIL import Image
 
 from service.core import EvaluationResult, MinimalOpenCLIPEvaluator
 
@@ -16,9 +12,11 @@ from .schema import (
     HealthResponse,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class EvaluationHandler:
-    """Handler for evaluation requests"""
+    """Async handler for evaluation requests"""
 
     def __init__(self):
         self._evaluators: dict[str, MinimalOpenCLIPEvaluator] = {}
@@ -39,25 +37,6 @@ class EvaluationHandler:
 
         return self._evaluators[model_config]
 
-    def _process_image_input(self, image_input: str) -> str:
-        """Process image input - handle base64 or return URL/path as-is"""
-        if image_input.startswith("data:image/"):
-            # Base64 encoded image
-            try:
-                header, encoded = image_input.split(",", 1)
-                image_data = base64.b64decode(encoded)
-                image = Image.open(io.BytesIO(image_data))
-
-                # Save to secure temp file 
-                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as temp_file:
-                    temp_path = temp_file.name
-                    image.save(temp_path)
-                return temp_path
-            except Exception as e:
-                raise ValueError(f"Failed to process base64 image: {e}") from e
-
-        return image_input
-
     def _evaluation_result_to_response(self, result: EvaluationResult, model_config: str) -> EvaluationResponse:
         """Convert EvaluationResult to EvaluationResponse"""
         return EvaluationResponse(
@@ -74,74 +53,60 @@ class EvaluationHandler:
         model_config = request.model_config_name or "fast"
         evaluator = self._get_evaluator(model_config)
 
-        # Process image input (handle base64 if needed)
-        processed_image_input = self._process_image_input(request.image_input)
-
         # Perform evaluation
-        result = evaluator.evaluate_single(processed_image_input, request.text_prompt)
+        result = await evaluator.evaluate_single(request.image_input, request.text_prompt)
 
         return self._evaluation_result_to_response(result, model_config)
 
     async def evaluate_batch(self, request: BatchEvaluationRequest) -> BatchEvaluationResponse:
-        """Handle batch evaluation request"""
+        """
+        Handle batch evaluation request
+        TODO:
+        # Batch optimization per model - group requests by model config
+        # Address multiple loading of same model concurrently
+        """
         start_time = time.time()
 
-        # Group requests by model config
-        config_groups = {}
-        for i, eval_req in enumerate(request.evaluations):
-            model_config = eval_req.model_config_name or "fast"
-            if model_config not in config_groups:
-                config_groups[model_config] = []
-            config_groups[model_config].append((i, eval_req))
+        tasks = [self.evaluate_single(eval_req) for eval_req in request.evaluations]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Process each config group
-        all_results = [None] * len(request.evaluations)
-
-        for model_config, eval_requests in config_groups.items():
-            evaluator = self._get_evaluator(model_config)
-
-            # Prepare batch inputs
-            indices = [idx for idx, _ in eval_requests]
-            image_inputs = []
-            text_prompts = []
-
-            for _, eval_req in eval_requests:
-                processed_image = self._process_image_input(eval_req.image_input)
-                image_inputs.append(processed_image)
-                text_prompts.append(eval_req.text_prompt)
-
-            # Perform batch evaluation
-            results = evaluator.evaluate_batch(
-                image_inputs=image_inputs,
-                text_prompts=text_prompts,
-                batch_size=request.batch_size,
-                show_progress=request.show_progress,
-            )
-
-            # Map results back to original positions
-            for idx, result in zip(indices, results, strict=False):
-                all_results[idx] = self._evaluation_result_to_response(result, model_config)
+        # Handle any exceptions that occurred during processing
+        final_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                eval_req = request.evaluations[i]
+                model_config = eval_req.model_config_name or "fast"
+                failed_result = EvaluationResult(
+                    image_path=eval_req.image_input,
+                    text_prompt=eval_req.text_prompt,
+                    clip_score=0.0,
+                    processing_time_ms=0.0,
+                    error=str(result),
+                )
+                final_results.append(self._evaluation_result_to_response(failed_result, model_config))
+            else:
+                final_results.append(result)
 
         # Calculate summary statistics
         total_processing_time = (time.time() - start_time) * 1000
-        successful_results = [r for r in all_results if r.error is None]
-        failed_results = [r for r in all_results if r.error is not None]
+        successful_results = [r for r in final_results if r.error is None]
+        failed_results = [r for r in final_results if r.error is not None]
 
         return BatchEvaluationResponse(
-            results=all_results,
-            total_processed=len(all_results),
+            results=final_results,
+            total_processed=len(final_results),
             total_successful=len(successful_results),
             total_failed=len(failed_results),
             total_processing_time_ms=total_processing_time,
         )
 
     async def health_check(self) -> HealthResponse:
-        """Health check endpoint"""
+        """Health check for model availability"""
         try:
-            # Try to load fast evaluator to verify models are accessible
-            self._get_evaluator("fast")
-            model_loaded = True
-        except Exception:
+            evaluator = self._get_evaluator("fast")
+            model_loaded = evaluator is not None and hasattr(evaluator, "model")
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
             model_loaded = False
 
         return HealthResponse(
@@ -151,13 +116,10 @@ class EvaluationHandler:
         )
 
 
-# Global handler instance - using module-level singleton pattern
 _handler: EvaluationHandler | None = None
 
 
 def get_handler() -> EvaluationHandler:
-    """Get global handler instance using singleton pattern"""
-    # Using module-level singleton instead of global statement
     global _handler  # noqa: PLW0603
     if _handler is None:
         _handler = EvaluationHandler()
