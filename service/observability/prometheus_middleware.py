@@ -2,6 +2,8 @@ import time
 from functools import wraps
 from typing import Any, Callable
 
+import psutil
+import torch
 from fastapi import Request, Response
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -95,6 +97,25 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             ["error_type", "model_config", "app_name"],
         )
 
+        # Simple system metrics
+        self.SYSTEM_CPU_USAGE = Gauge(
+            "vision_similarity_cpu_usage_percent",
+            "CPU usage percentage",
+            ["app_name"],
+        )
+
+        self.SYSTEM_MEMORY_USAGE = Gauge(
+            "vision_similarity_memory_usage_bytes",
+            "Memory usage in bytes",
+            ["memory_type", "app_name"],  # rss, vms
+        )
+
+        self.GPU_MEMORY_USAGE = Gauge(
+            "vision_similarity_gpu_memory_bytes",
+            "GPU memory usage in bytes",
+            ["gpu_id", "memory_type", "app_name"],  # allocated, reserved
+        )
+
         self.APP_INFO = Gauge(
             "vision_similarity_app_info",
             "Application information",
@@ -182,6 +203,40 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             model_config=model_config,
             app_name=self.app_name,
         ).inc()
+
+    def update_system_metrics(self) -> None:
+        """Update system resource metrics - called periodically"""
+        try:
+            # CPU usage
+            cpu_percent = psutil.cpu_percent()
+            self.SYSTEM_CPU_USAGE.labels(app_name=self.app_name).set(cpu_percent)
+            
+            # Memory usage
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            self.SYSTEM_MEMORY_USAGE.labels(
+                memory_type="rss", app_name=self.app_name
+            ).set(memory_info.rss)
+            self.SYSTEM_MEMORY_USAGE.labels(
+                memory_type="vms", app_name=self.app_name
+            ).set(memory_info.vms)
+            
+            # GPU memory if available
+            if torch.cuda.is_available():
+                for gpu_id in range(torch.cuda.device_count()):
+                    allocated = torch.cuda.memory_allocated(gpu_id)
+                    reserved = torch.cuda.memory_reserved(gpu_id)
+                    
+                    self.GPU_MEMORY_USAGE.labels(
+                        gpu_id=str(gpu_id), memory_type="allocated", app_name=self.app_name
+                    ).set(allocated)
+                    self.GPU_MEMORY_USAGE.labels(
+                        gpu_id=str(gpu_id), memory_type="reserved", app_name=self.app_name
+                    ).set(reserved)
+        
+        except Exception:
+            # Silently fail to avoid disrupting service
+            pass
 
 
 _metrics_middleware: PrometheusMiddleware | None = None

@@ -7,6 +7,7 @@ from service.observability.prometheus_middleware import (
     PrometheusMiddleware,
     metrics_endpoint,
 )
+from service.observability.prometheus_middleware import get_metrics_middleware
 
 app = FastAPI(
     title=APP_TITLE,
@@ -24,6 +25,24 @@ app.add_route(f"{PATH_PREFIX}/metrics", metrics_endpoint)
 
 # Include routers
 app.include_router(evaluation.router, prefix=PATH_PREFIX)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize system metrics monitoring"""
+    import asyncio
+    
+    async def update_metrics_task():
+        """Update system metrics every 10 seconds"""
+        while True:
+            try:
+                metrics = get_metrics_middleware()
+                metrics.update_system_metrics()
+                await asyncio.sleep(10)
+            except Exception:
+                await asyncio.sleep(10)
+    
+    asyncio.create_task(update_metrics_task())
 
 
 @app.get(f"{PATH_PREFIX}/health")
