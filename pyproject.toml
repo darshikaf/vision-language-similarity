@@ -28,10 +28,14 @@ dependencies = [
     "httpx>=0.24.0",  # Async HTTP client
     "aiofiles>=23.0.0",  # Async file operations
     
-    # Observability dependencies (following ai-systems-pins compatibility matrix)
+    # Observability dependencies
     "prometheus-client>=0.22.1",  # Prometheus metrics
     "opentelemetry-api>=1.30.0,<1.31",  # OpenTelemetry API (stable)
     "opentelemetry-sdk>=1.30.0,<1.31",  # OpenTelemetry SDK (stable)
+    
+    # Profiling dependencies
+    "psutil>=5.9.0",  # System metrics (CPU, memory, I/O)
+    "py-spy>=0.3.14",  # Continuous profiling with minimal overhead
     "opentelemetry-exporter-otlp>=1.30.0,<1.31",  # OTLP exporter (stable)
     "opentelemetry-distro>=0.51b0,<0.52b0",  # OpenTelemetry distribution with auto-instrumentation (beta)
     "opentelemetry-instrumentation-fastapi>=0.51b0,<0.52b0",  # FastAPI auto-instrumentation (beta)

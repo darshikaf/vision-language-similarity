@@ -8,8 +8,9 @@ include scripts/Makefile
 run-local-otel:
 	@echo "Starting observability stack..."
 	@echo "Grafana: http://localhost:3000 (admin/grafana)"
-	@echo "Prometheus: http://localhost:9090"
+	@echo "Prometheus: http://localhost:9090" 
 	@echo "Jaeger: http://localhost:16686"
+	@echo "Loki: http://localhost:3100"
 	docker-compose -f docker/observability/docker-compose.otel.yml up --build --force-recreate
 
 stop-otel:
