@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-usage () { printf >&2 "Usage\n    $(basename $0) dev-setup|build-base|build-app|build-test|build-ray-base|build-ray|run-local|run-ray-local|run-style|run-unit-test-suite|run-integration-test-suite|clean-docker-images|clean-docker-compose\n"; }
+usage () { printf >&2 "Usage\n    $(basename $0) dev-setup|build-base|build-app|build-test|build-ray-base|build-ray|run-local|run-ray-local|run-style|run-unit-test-suite|run-integration-test-suite|clean-docker-images|clean-docker-compose|load-test|load-test-light|load-test-ci\n"; }
 usage_error () { printf >&2 "$(basename $0): $1\n"; usage; exit 2; }
 
 if [[ $# -ne 1 ]]; then
@@ -37,6 +37,9 @@ case "$1" in
 	clean-docker-images) OPTION=clean-docker-images;;
 	clean-docker-compose) OPTION=clean-docker-compose;;
   docker-push) OPTION=docker-push;;
+	load-test) OPTION=load-test;;
+	load-test-light) OPTION=load-test-light;;
+	load-test-ci) OPTION=load-test-ci;;
 	*) usage_error "Unknown option"
 esac
 
@@ -266,5 +269,27 @@ case "$OPTION" in
 		else
 			echo "Docker push is only supported in CI environment"
 		fi
+		;;
+	load-test)
+		echo "Installing load test dependencies..."
+		pip install -q -r load_tests/requirements.txt
+		echo "Starting interactive load test..."
+		echo "Open http://localhost:8089 in your browser"
+		echo "Service endpoint: http://localhost:8000"
+		locust -f load_tests/locustfile.py --host=http://localhost:8000
+		;;
+	load-test-light)
+		echo "Installing load test dependencies..."
+		pip install -q -r load_tests/requirements.txt
+		echo "Running light load test (5 users, 2 minutes)..."
+		locust -f load_tests/locustfile.py --host=http://localhost:8000 \
+			--users 5 --spawn-rate 1 --run-time 2m --headless \
+			--user-class LightLoadUser
+		;;
+	load-test-ci)
+		echo "Installing load test dependencies..."
+		pip install -q -r load_tests/requirements.txt
+		echo "Running CI/CD performance tests..."
+		python -m pytest load_tests/test_load_performance.py -v
 		;;
 esac

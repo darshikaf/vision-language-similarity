@@ -211,3 +211,17 @@ class OpenCLIPSimilarityModel(SimilarityModel):
             }
         )
         return base_info
+
+    def cleanup(self) -> None:
+        """Clean up resources including thread pool"""
+        try:
+            if hasattr(self, '_executor') and self._executor:
+                self._executor.shutdown(wait=False)
+                self._executor = None
+                logger.debug(f"Cleaned up thread pool for model {self.model_name}")
+        except Exception as e:
+            logger.warning(f"Error during cleanup: {e}")
+
+    def __del__(self):
+        """Ensure cleanup on object deletion"""
+        self.cleanup()

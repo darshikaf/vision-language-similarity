@@ -98,7 +98,7 @@ class MinimalOpenCLIPEvaluator:
                 async with ImageLoader() as loader:
                     image = await loader.load_image(image_input)
 
-            # Determine source type for metrics
+            # -- Metrics: Determine source type
             if isinstance(image_input, str):
                 if image_input.startswith(("http://", "https://")):
                     source_type = "url"
@@ -113,24 +113,21 @@ class MinimalOpenCLIPEvaluator:
             clip_score, inference_time = await self.similarity_model.compute_similarity(image, text_prompt)
             total_time = (time.time() - start_time) * 1000
 
-            # Record metrics (safely handle missing middleware)
+            # -- Metrics
             try:
                 metrics = get_metrics_middleware()
+                if metrics:
+                    metrics.record_inference_time(
+                        inference_time / 1000, self.model_config_name, self.device.type, self.similarity_model.model_name
+                    )
 
-                # Record inference timing with model name (using inference_time in seconds)
-                metrics.record_inference_time(
-                    inference_time / 1000, self.model_config_name, self.device.type, self.similarity_model.model_name
-                )
+                    metrics.record_clip_score(clip_score, self.model_config_name, self.similarity_model.model_name)
 
-                # Record CLIP score with model name
-                metrics.record_clip_score(clip_score, self.model_config_name, self.similarity_model.model_name)
+                    image_processing_time = (total_time - inference_time) / 1000
+                    metrics.record_image_processing_time(image_processing_time, source_type)
 
-                # Record image processing time (total_time - inference_time)
-                image_processing_time = (total_time - inference_time) / 1000
-                metrics.record_image_processing_time(image_processing_time, source_type)
-
-            except (ImportError, RuntimeError):
-                # Metrics middleware not available - continue without metrics
+            except Exception as e:
+                logger.debug(f"Metrics recording failed: {e}")
                 pass
 
             return EvaluationResult(
@@ -145,13 +142,12 @@ class MinimalOpenCLIPEvaluator:
             logger.error(f"Async evaluation failed for {image_input}: {e}")
             error_type = getattr(e, "error_type", None) if isinstance(e, ServiceError) else None
 
-            # Record model-specific error and pattern
+            # -- Metrics: model-specific errors
             try:
                 metrics = get_metrics_middleware()
                 if metrics:
                     error_name = error_type or type(e).__name__
                     metrics.record_model_error(error_name, self.model_config_name, self.similarity_model.model_name)
-                    # Simple error pattern tracking
                     metrics.record_error_pattern(error_name, "evaluation", self.model_config_name)
             except Exception as e:
                 logger.debug(f"Metrics recording failed: {e}")
@@ -207,7 +203,7 @@ class MinimalOpenCLIPEvaluator:
                                 return img_input.convert("RGB"), idx, None
                             else:
                                 image = await image_loader.load_image(img_input)
-                                return image, idx, None
+                                return image, idx, None # (image_result, idx, error_message)
                         except Exception as e:
                             logger.error(f"Failed to load image {img_input}: {e}")
                             error_type = getattr(e, "error_type", None) if isinstance(e, ServiceError) else None
