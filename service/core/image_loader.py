@@ -14,7 +14,13 @@ from PIL import Image
 
 
 class ImageLoader:
-    """Handles loading images from various sources with error handling"""
+    """
+    Handles loading images from various sources with error handling
+
+    TODO:
+    # Timeout and connection limit configuration
+    # HTTP/2 support for better performance
+    """
 
     def __init__(self, http_client: httpx.AsyncClient = None):
         """Initialize with optional HTTP client for connection reuse"""

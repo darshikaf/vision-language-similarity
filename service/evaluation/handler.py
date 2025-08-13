@@ -89,6 +89,7 @@ class EvaluationHandler:
         TODO:
         # Batch optimization per model - group requests by model config
         # Address multiple loading of same model concurrently
+        # Use evaluator's native batch processing
         """
         start_time = time.time()
 
