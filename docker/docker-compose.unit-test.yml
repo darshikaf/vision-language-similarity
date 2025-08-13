@@ -1,0 +1,13 @@
+name: vision-language-similarity-unit-test
+services:
+  evaluator:
+    image: ${TEST_IMAGE_NAME}
+    command: ["scripts/run_test.sh", "--test-suite", "unit"]
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./test-reports:/tmp/test-reports
+      - model_cache:/root/.cache/openclip
+
+volumes:
+  model_cache:

@@ -3,7 +3,7 @@ export PROJECT_ALIAS := evaluator
 
 include scripts/Makefile
 
-.PHONY: run-local-otel stop-otel clean-otel test-otel build-ray-base build-ray run-local-ray stop-ray clean-ray test-ray
+.PHONY: run-local-otel stop-otel clean-otel test-otel build-ray-base build-ray run-local-ray stop-ray clean-ray test-ray load-test load-test-light load-test-ci
 
 run-local-otel:
 	@echo "Starting observability stack..."
@@ -64,3 +64,13 @@ test-ray:
 	curl -s -X POST http://localhost:8000/evaluator/v1/evaluation/single \
 	  -H "Content-Type: application/json" \
 	  -d '{"image_input": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==", "text_prompt": "test", "model_config_name": "fast"}' | jq .
+
+# Load testing targets
+load-test:
+	scripts/build.sh load-test
+
+load-test-light:
+	scripts/build.sh load-test-light
+
+load-test-ci:
+	scripts/build.sh load-test-ci
