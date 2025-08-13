@@ -6,11 +6,11 @@ import time
 from PIL import Image
 from tqdm import tqdm
 
-from service.observability.prometheus_middleware import get_metrics_middleware
+from service.core.exceptions import ServiceError, ValidationError
 from service.core.image_loader import ImageLoader
 from service.core.models import EvaluationResult
 from service.core.similarity_models import SimilarityModelFactory
-from service.core.exceptions import ServiceError, ValidationError
+from service.observability.prometheus_middleware import get_metrics_middleware
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -119,18 +119,11 @@ class MinimalOpenCLIPEvaluator:
 
                 # Record inference timing with model name (using inference_time in seconds)
                 metrics.record_inference_time(
-                    inference_time / 1000, 
-                    self.model_config_name, 
-                    self.device.type,
-                    self.similarity_model.model_name
+                    inference_time / 1000, self.model_config_name, self.device.type, self.similarity_model.model_name
                 )
-                
+
                 # Record CLIP score with model name
-                metrics.record_clip_score(
-                    clip_score,
-                    self.model_config_name,
-                    self.similarity_model.model_name
-                )
+                metrics.record_clip_score(clip_score, self.model_config_name, self.similarity_model.model_name)
 
                 # Record image processing time (total_time - inference_time)
                 image_processing_time = (total_time - inference_time) / 1000
@@ -150,27 +143,19 @@ class MinimalOpenCLIPEvaluator:
 
         except Exception as e:
             logger.error(f"Async evaluation failed for {image_input}: {e}")
-            error_type = getattr(e, 'error_type', None) if isinstance(e, ServiceError) else None
-            
+            error_type = getattr(e, "error_type", None) if isinstance(e, ServiceError) else None
+
             # Record model-specific error and pattern
             try:
                 metrics = get_metrics_middleware()
                 if metrics:
                     error_name = error_type or type(e).__name__
-                    metrics.record_model_error(
-                        error_name,
-                        self.model_config_name,
-                        self.similarity_model.model_name
-                    )
+                    metrics.record_model_error(error_name, self.model_config_name, self.similarity_model.model_name)
                     # Simple error pattern tracking
-                    metrics.record_error_pattern(
-                        error_name,
-                        "evaluation",
-                        self.model_config_name
-                    )
+                    metrics.record_error_pattern(error_name, "evaluation", self.model_config_name)
             except Exception as e:
                 logger.debug(f"Metrics recording failed: {e}")
-                
+
             return self._create_failed_result(image_input, text_prompt, str(e), error_type)
 
     async def evaluate_batch(  # noqa: C901
@@ -225,7 +210,7 @@ class MinimalOpenCLIPEvaluator:
                                 return image, idx, None
                         except Exception as e:
                             logger.error(f"Failed to load image {img_input}: {e}")
-                            error_type = getattr(e, 'error_type', None) if isinstance(e, ServiceError) else None
+                            error_type = getattr(e, "error_type", None) if isinstance(e, ServiceError) else None
                             return None, idx, str(e), error_type
 
                 # Load all images in batch concurrently
@@ -244,7 +229,7 @@ class MinimalOpenCLIPEvaluator:
                     else:
                         image_result, original_idx, error = result
                         error_type = None
-                    
+
                     if error or image_result is None:
                         failed_results.append(
                             self._create_failed_result(

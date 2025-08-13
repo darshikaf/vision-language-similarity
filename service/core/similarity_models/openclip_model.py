@@ -46,14 +46,14 @@ class OpenCLIPSimilarityModel(SimilarityModel):
         self.model, self.preprocess = self._load_model_sync()
         load_duration = time.time() - load_start_time
         self._model_loaded = True
-        
+
         # Record model loading time
         try:
             metrics = get_metrics_middleware()
             if metrics:
                 metrics.record_model_load_time(load_duration, model_config, self.model_name)
                 logger.info(f"Model {self.model_name} loaded in {load_duration:.2f}s")
-        except Exception as e:
+        except Exception:
             # Metrics not available - continue without metrics
             logger.info(f"Model {self.model_name} loaded in {load_duration:.2f}s (metrics unavailable)")
 
@@ -77,7 +77,7 @@ class OpenCLIPSimilarityModel(SimilarityModel):
 
         except Exception as e:
             logger.error(f"Failed to load model {self.model_name}/{self.pretrained}: {e}")
-            
+
             # Record model loading error
             try:
                 metrics = get_metrics_middleware()
@@ -85,7 +85,7 @@ class OpenCLIPSimilarityModel(SimilarityModel):
                     metrics.record_model_error("model_load_error", self.model_config, self.model_name)
             except Exception as e:
                 logger.debug(f"Metrics recording failed: {e}")
-                
+
             raise ModelError(f"Failed to load model {self.model_name}/{self.pretrained}: {e}") from e
 
     def _calculate_clip_score(self, raw_cosine: float) -> float:
@@ -136,7 +136,7 @@ class OpenCLIPSimilarityModel(SimilarityModel):
 
         # Convert to CLIP scores
         clip_scores = [self._calculate_clip_score(cosine) for cosine in raw_cosines]
-        
+
         # Record batch efficiency (estimate single operation time for comparison)
         try:
             metrics = get_metrics_middleware()
@@ -145,13 +145,13 @@ class OpenCLIPSimilarityModel(SimilarityModel):
                 estimated_single_time = processing_time / len(images) * 1.2  # Add 20% overhead estimate
                 total_single_time = estimated_single_time * len(images)
                 efficiency_ratio = processing_time / total_single_time if total_single_time > 0 else 1.0
-                
+
                 metrics.record_batch_efficiency(efficiency_ratio, self.model_config, self.model_name)
-                
+
                 logger.debug(f"Batch efficiency: {efficiency_ratio:.3f} for {len(images)} items")
         except Exception as e:
             logger.debug(f"Metrics recording failed: {e}")
-        
+
         return clip_scores, processing_time
 
     def _run_inference_sync(self, image: Image.Image, text_prompt: str) -> tuple[float, float]:

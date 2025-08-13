@@ -1,6 +1,4 @@
-import asyncio
 from collections.abc import Callable
-from functools import wraps
 import time
 from typing import Any
 
@@ -71,7 +69,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             ["model_config", "model_name", "device_type", "app_name"],
             buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0],
         )
-        
+
         # Model loading time
         self.MODEL_LOAD_DURATION = Histogram(
             "vision_similarity_model_load_seconds",
@@ -79,14 +77,14 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             ["model_config", "model_name", "app_name"],
             buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
         )
-        
+
         # Model-specific error tracking
         self.MODEL_ERRORS = Counter(
             "vision_similarity_model_errors_total",
             "Model-specific error counts by type",
             ["model_config", "model_name", "error_type", "app_name"],
         )
-        
+
         # Batch processing efficiency
         self.BATCH_EFFICIENCY = Histogram(
             "vision_similarity_batch_efficiency_ratio",
@@ -148,7 +146,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         )
         # Set app info (version to be added later)
         self.APP_INFO.labels(app_name=self.app_name, version="0.1.0").set(1)
-        
+
         # Error pattern tracking
         self.ERROR_PATTERNS = Counter(
             "vision_similarity_error_patterns_total",
@@ -208,7 +206,9 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         # Fallback to raw path
         return request.url.path
 
-    def record_inference_time(self, duration: float, model_config: str, device_type: str, model_name: str = "unknown") -> None:
+    def record_inference_time(
+        self, duration: float, model_config: str, device_type: str, model_name: str = "unknown"
+    ) -> None:
         """Record model inference timing"""
         self.MODEL_INFERENCE_DURATION.labels(
             model_config=model_config,
@@ -220,9 +220,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
     def record_clip_score(self, score: float, model_config: str, model_name: str = "unknown") -> None:
         """Record CLIP similarity score"""
         self.CLIP_SCORE_DISTRIBUTION.labels(
-            model_config=model_config,
-            model_name=model_name,
-            app_name=self.app_name
+            model_config=model_config, model_name=model_name, app_name=self.app_name
         ).observe(score)
 
     def record_image_processing_time(self, duration: float, source_type: str) -> None:
@@ -240,7 +238,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             model_config=model_config,
             app_name=self.app_name,
         ).inc()
-    
+
     def record_model_error(self, error_type: str, model_config: str, model_name: str) -> None:
         """Record model-specific error"""
         self.MODEL_ERRORS.labels(
@@ -249,7 +247,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             error_type=error_type,
             app_name=self.app_name,
         ).inc()
-    
+
     def record_model_load_time(self, duration: float, model_config: str, model_name: str) -> None:
         """Record model loading time"""
         self.MODEL_LOAD_DURATION.labels(
@@ -257,7 +255,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             model_name=model_name,
             app_name=self.app_name,
         ).observe(duration)
-    
+
     def record_batch_efficiency(self, efficiency_ratio: float, model_config: str, model_name: str) -> None:
         """Record batch processing efficiency"""
         self.BATCH_EFFICIENCY.labels(
@@ -265,7 +263,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             model_name=model_name,
             app_name=self.app_name,
         ).observe(efficiency_ratio)
-    
+
     def record_error_pattern(self, error_type: str, error_context: str, model_config: str) -> None:
         """Record simple error pattern for monitoring"""
         self.ERROR_PATTERNS.labels(
@@ -319,4 +317,3 @@ def get_metrics_middleware() -> PrometheusMiddleware:
 def metrics_endpoint(request: Request) -> StarletteResponse:
     """Prometheus metrics endpoint"""
     return StarletteResponse(generate_latest(), media_type="text/plain")
-

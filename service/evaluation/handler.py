@@ -67,7 +67,7 @@ class EvaluationHandler:
             # Record evaluation errors
             if result.error is not None:
                 # Extract error type from exception
-                error_type = getattr(result, 'error_type', 'evaluation_error')
+                error_type = getattr(result, "error_type", "evaluation_error")
                 metrics.record_evaluation_error(error_type, model_config)
 
         except RuntimeError:
