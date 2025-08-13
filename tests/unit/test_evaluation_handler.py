@@ -50,7 +50,8 @@ class TestEvaluationHandler:
     async def test_health_check_healthy(self, handler):
         with patch.object(handler, '_get_evaluator') as mock_get_evaluator:
             mock_evaluator = Mock()
-            mock_evaluator.model = Mock()  # Model attribute exists
+            mock_evaluator.similarity_model = Mock()
+            mock_evaluator.similarity_model.model = Mock()
             mock_get_evaluator.return_value = mock_evaluator
             
             response = await handler.health_check()

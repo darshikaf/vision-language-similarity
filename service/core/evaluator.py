@@ -1,23 +1,15 @@
-"""
-OpenCLIP evaluator with thread pool execution for PyTorch operations
-"""
-
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 import logging
 from pathlib import Path
 import time
 
-import open_clip
 from PIL import Image
-import torch
-import torch.nn.functional as F
 from tqdm import tqdm
 
-from .device_manager import DeviceManager
-from .image_loader import ImageLoader
-from .models import EvaluationResult
-from ..observability.prometheus_middleware import get_metrics_middleware
+from service.observability.prometheus_middleware import get_metrics_middleware
+from service.core.image_loader import ImageLoader
+from service.core.models import EvaluationResult
+from service.core.similarity_models import SimilarityModelFactory
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -38,73 +30,33 @@ class MinimalOpenCLIPEvaluator:
     """
 
     def __init__(
-        self,
-        model_name: str = "ViT-B-32",
-        pretrained: str = "laion2b_s34b_b79k",
-        device: str | None = None,
-        cache_dir: str | None = None,
-        max_workers: int | None = None,
+        self, model_config_name: str = "fast", device: str | None = None, max_concurrent_loads: int = 10, **model_kwargs
     ):
         """
-        Initialize evaluator
+        Initialize evaluator with pluggable similarity model.
 
         Args:
-            model_name: OpenCLIP model architecture
-            pretrained: Pretrained weights
+            model_config_name: Model configuration name ("fast", "accurate", or custom config)
             device: Device for computation (auto-detected if None)
-            cache_dir: Directory for caching models
-            max_workers: Max workers for thread pool (defaults to CPU count)
+            max_concurrent_loads: Max concurrent image loading operations
+            **model_kwargs: Additional arguments passed to the similarity model
         """
-        self.model_name = model_name
-        self.pretrained = pretrained
-        self.cache_dir = cache_dir or str(Path.home() / ".cache" / "openclip")
-        
-        # Determine model config for metrics
-        if model_name == "ViT-B-32":
-            self.model_config = "fast"
-        elif model_name == "ViT-L-14":
-            self.model_config = "accurate"
-        else:
-            self.model_config = "custom"
+        self.model_config_name = model_config_name
+        self.max_concurrent_loads = max_concurrent_loads
 
-        # Setup device and precision
-        self.device = DeviceManager.get_optimal_device(device)
-        self.precision = DeviceManager.get_optimal_precision(self.device)
+        self.similarity_model = SimilarityModelFactory.create_model(model_config_name, device=device, **model_kwargs)
 
-        # Thread pool for PyTorch operations
-        self.max_workers = max_workers or 4  # Simple default, configurable via constructor
-        self._executor = ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="torch_")
+        logger.info(f"Initialized evaluator with {self.similarity_model.model_name} model ({model_config_name} config)")
 
-        # Initialize components
-        self.model, self.preprocess = self._load_model()
+    @property
+    def device(self):
+        """Get device from underlying similarity model"""
+        return self.similarity_model.device
 
-        logger.info(f"Initialized async {model_name}/{pretrained} on {self.device} with {self.max_workers} workers")
-
-    def _load_model(self):
-        """Load OpenCLIP model with error handling"""
-        try:
-            model, _, preprocess = open_clip.create_model_and_transforms(
-                self.model_name,
-                pretrained=self.pretrained,
-                device=self.device,
-                precision=self.precision,
-                cache_dir=self.cache_dir,
-            )
-            model.eval()
-
-            # Apply mixed precision optimization
-            if self.precision == "fp16" and self.device.type == "cuda":
-                model = model.half()
-
-            return model, preprocess
-
-        except Exception as e:
-            logger.error(f"Failed to load model {self.model_name}/{self.pretrained}: {e}")
-            raise
-
-    def _calculate_clip_score(self, raw_cosine: float) -> float:
-        """Convert to CLIP standard score: max(100 * cosine, 0)"""
-        return max(100 * raw_cosine, 0)
+    @property
+    def model_config(self):
+        """Get model config from underlying similarity model"""
+        return self.similarity_model.model_config
 
     def _create_failed_result(
         self, image_input: str | Image.Image | Path, text_prompt: str, error_message: str
@@ -117,51 +69,6 @@ class MinimalOpenCLIPEvaluator:
             processing_time_ms=0.0,
             error=error_message,
         )
-
-    def _run_inference_sync(self, image: Image.Image, text_prompt: str) -> tuple[float, float]:
-        """Run PyTorch inference synchronously in thread pool"""
-        with torch.no_grad():
-            start_time = time.time()
-
-            # Preprocess image
-            image_tensor = self.preprocess(image).unsqueeze(0).to(self.device)
-
-            # Tokenize text
-            text_tokens = open_clip.tokenize([text_prompt]).to(self.device)
-
-            # Extract and normalize features
-            image_features = F.normalize(self.model.encode_image(image_tensor), p=2, dim=-1)
-            text_features = F.normalize(self.model.encode_text(text_tokens), p=2, dim=-1)
-
-            # Calculate similarity
-            raw_cosine = torch.cosine_similarity(image_features, text_features, dim=-1).item()
-
-            processing_time = (time.time() - start_time) * 1000
-            return raw_cosine, processing_time
-
-    def _run_batch_inference_sync(
-        self, images: list[Image.Image], text_prompts: list[str]
-    ) -> tuple[list[float], float]:
-        """Run batch PyTorch inference synchronously in thread pool"""
-        with torch.no_grad():
-            start_time = time.time()
-
-            # Stack preprocessed images into a single tensor
-            image_tensors = torch.stack([self.preprocess(img) for img in images]).to(self.device)
-
-            # Tokenize all texts at once
-            text_tokens = open_clip.tokenize(text_prompts).to(self.device)
-
-            # Extract features in batch
-            image_features = F.normalize(self.model.encode_image(image_tensors), p=2, dim=-1)
-            text_features = F.normalize(self.model.encode_text(text_tokens), p=2, dim=-1)
-
-            # Calculate similarities for entire batch
-            cosine_similarities = torch.sum(image_features * text_features, dim=-1)
-            raw_cosines = [sim.item() for sim in cosine_similarities]
-
-            processing_time = (time.time() - start_time) * 1000
-            return raw_cosines, processing_time
 
     async def evaluate_single(
         self, image_input: str | Image.Image | Path, text_prompt: str, image_loader: ImageLoader | None = None
@@ -200,26 +107,21 @@ class MinimalOpenCLIPEvaluator:
             else:
                 source_type = "pil_image"
 
-            # Run PyTorch inference in thread pool
-            loop = asyncio.get_event_loop()
-            raw_cosine, inference_time = await loop.run_in_executor(
-                self._executor, self._run_inference_sync, image, text_prompt
-            )
-
-            clip_score = self._calculate_clip_score(raw_cosine)
+            # Use similarity model for inference
+            clip_score, inference_time = await self.similarity_model.compute_similarity(image, text_prompt)
             total_time = (time.time() - start_time) * 1000
 
             # Record metrics (safely handle missing middleware)
             try:
                 metrics = get_metrics_middleware()
-                
+
                 # Record inference timing (using inference_time in seconds)
                 metrics.record_inference_time(inference_time / 1000, self.model_config, self.device.type)
-                
+
                 # Record image processing time (total_time - inference_time)
                 image_processing_time = (total_time - inference_time) / 1000
                 metrics.record_image_processing_time(image_processing_time, source_type)
-                
+
             except (ImportError, RuntimeError):
                 # Metrics middleware not available - continue without metrics
                 pass
@@ -236,13 +138,13 @@ class MinimalOpenCLIPEvaluator:
             logger.error(f"Async evaluation failed for {image_input}: {e}")
             return self._create_failed_result(image_input, text_prompt, str(e))
 
-    async def evaluate_batch(
+    async def evaluate_batch(  # noqa: C901
         self,
         image_inputs: list[str | Image.Image | Path],
         text_prompts: list[str],
         batch_size: int = 32,
         show_progress: bool = True,
-        max_concurrent_loads: int = 10,
+        max_concurrent_loads: int | None = None,
     ) -> list[EvaluationResult]:
         """
         Evaluate multiple image-text pairs using efficient async batch processing
@@ -264,7 +166,8 @@ class MinimalOpenCLIPEvaluator:
         total_batches = (len(image_inputs) + batch_size - 1) // batch_size
 
         # Use semaphore to limit concurrent image loading
-        load_semaphore = asyncio.Semaphore(max_concurrent_loads)
+        concurrent_loads = max_concurrent_loads or self.max_concurrent_loads
+        load_semaphore = asyncio.Semaphore(concurrent_loads)
 
         async with ImageLoader() as image_loader:
             iterator = range(0, len(image_inputs), batch_size)
@@ -317,18 +220,15 @@ class MinimalOpenCLIPEvaluator:
                     try:
                         valid_prompts = [batch_prompts[i] for i in valid_indices]
 
-                        # Run batch inference in thread pool
-                        loop = asyncio.get_event_loop()
-                        raw_cosines, batch_time = await loop.run_in_executor(
-                            self._executor, self._run_batch_inference_sync, batch_images, valid_prompts
+                        # Use similarity model for batch inference
+                        clip_scores, batch_time = await self.similarity_model.compute_batch_similarity(
+                            batch_images, valid_prompts
                         )
 
                         avg_time_per_item = batch_time / len(batch_images)
 
                         # Create results for valid images
-                        for idx, (valid_idx, raw_cosine) in enumerate(zip(valid_indices, raw_cosines, strict=False)):
-                            clip_score = self._calculate_clip_score(raw_cosine)
-
+                        for _, (valid_idx, clip_score) in enumerate(zip(valid_indices, clip_scores, strict=False)):
                             results.append(
                                 EvaluationResult(
                                     image_path=str(batch_images_raw[valid_idx]),
@@ -357,9 +257,9 @@ class MinimalOpenCLIPEvaluator:
     @classmethod
     def create_fast_evaluator(cls, device: str | None = None, **kwargs) -> "MinimalOpenCLIPEvaluator":
         """Create evaluator optimized for speed"""
-        return cls(model_name="ViT-B-32", pretrained="laion2b_s34b_b79k", device=device, **kwargs)
+        return cls(model_config_name="fast", device=device, **kwargs)
 
     @classmethod
     def create_accurate_evaluator(cls, device: str | None = None, **kwargs) -> "MinimalOpenCLIPEvaluator":
         """Create evaluator optimized for accuracy"""
-        return cls(model_name="ViT-L-14", pretrained="laion2b_s32b_b82k", device=device, **kwargs)
+        return cls(model_config_name="accurate", device=device, **kwargs)

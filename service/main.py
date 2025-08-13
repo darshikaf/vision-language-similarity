@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI
 from starlette.responses import JSONResponse
 
@@ -5,9 +7,9 @@ from service import evaluation
 from service.constants import APP_NAME, APP_TITLE, PATH_PREFIX
 from service.observability.prometheus_middleware import (
     PrometheusMiddleware,
+    get_metrics_middleware,
     metrics_endpoint,
 )
-from service.observability.prometheus_middleware import get_metrics_middleware
 
 app = FastAPI(
     title=APP_TITLE,
@@ -30,8 +32,7 @@ app.include_router(evaluation.router, prefix=PATH_PREFIX)
 @app.on_event("startup")
 async def startup_event():
     """Initialize system metrics monitoring"""
-    import asyncio
-    
+
     async def update_metrics_task():
         """Update system metrics every 10 seconds"""
         while True:
@@ -41,7 +42,7 @@ async def startup_event():
                 await asyncio.sleep(10)
             except Exception:
                 await asyncio.sleep(10)
-    
+
     asyncio.create_task(update_metrics_task())
 
 

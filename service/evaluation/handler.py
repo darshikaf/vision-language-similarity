@@ -59,11 +59,11 @@ class EvaluationHandler:
 
         try:
             metrics = get_metrics_middleware()
-            
+
             # Record CLIP score distribution
             if result.clip_score is not None and result.error is None:
                 metrics.record_clip_score(result.clip_score, model_config)
-            
+
             # Record evaluation errors
             if result.error is not None:
                 error_type = "evaluation_error"
@@ -74,9 +74,9 @@ class EvaluationHandler:
                     error_type = "image_processing_error"
                 elif "model" in result.error.lower():
                     error_type = "model_error"
-                
+
                 metrics.record_evaluation_error(error_type, model_config)
-                
+
         except RuntimeError:
             # Metrics middleware not initialized - continue without metrics
             logger.debug("Metrics middleware not available")
@@ -137,7 +137,11 @@ class EvaluationHandler:
         """Health check for model availability"""
         try:
             evaluator = self._get_evaluator("fast")
-            model_loaded = evaluator is not None and hasattr(evaluator, "model")
+            model_loaded = (
+                evaluator is not None
+                and hasattr(evaluator, "similarity_model")
+                and hasattr(evaluator.similarity_model, "model")
+            )
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             model_loaded = False

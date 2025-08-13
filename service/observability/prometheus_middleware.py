@@ -1,27 +1,29 @@
-import time
+import asyncio
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+import time
+from typing import Any
 
-import psutil
-import torch
 from fastapi import Request, Response
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
+import psutil
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
+import torch
 
 from ..constants import APP_NAME
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     """Prometheus middleware for FastAPI with ML-specific metrics"""
-    
+
     _instance: "PrometheusMiddleware | None" = None
     _metrics_initialized = False
 
     def __init__(self, app: Any, app_name: str = APP_NAME) -> None:
         super().__init__(app)
         self.app_name = app_name
-        
+
         # Use singleton pattern to avoid duplicate metrics registration
         if not PrometheusMiddleware._metrics_initialized:
             self._initialize_metrics()
@@ -210,30 +212,26 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             # CPU usage
             cpu_percent = psutil.cpu_percent()
             self.SYSTEM_CPU_USAGE.labels(app_name=self.app_name).set(cpu_percent)
-            
+
             # Memory usage
             process = psutil.Process()
             memory_info = process.memory_info()
-            self.SYSTEM_MEMORY_USAGE.labels(
-                memory_type="rss", app_name=self.app_name
-            ).set(memory_info.rss)
-            self.SYSTEM_MEMORY_USAGE.labels(
-                memory_type="vms", app_name=self.app_name
-            ).set(memory_info.vms)
-            
+            self.SYSTEM_MEMORY_USAGE.labels(memory_type="rss", app_name=self.app_name).set(memory_info.rss)
+            self.SYSTEM_MEMORY_USAGE.labels(memory_type="vms", app_name=self.app_name).set(memory_info.vms)
+
             # GPU memory if available
             if torch.cuda.is_available():
                 for gpu_id in range(torch.cuda.device_count()):
                     allocated = torch.cuda.memory_allocated(gpu_id)
                     reserved = torch.cuda.memory_reserved(gpu_id)
-                    
+
                     self.GPU_MEMORY_USAGE.labels(
                         gpu_id=str(gpu_id), memory_type="allocated", app_name=self.app_name
                     ).set(allocated)
                     self.GPU_MEMORY_USAGE.labels(
                         gpu_id=str(gpu_id), memory_type="reserved", app_name=self.app_name
                     ).set(reserved)
-        
+
         except Exception:
             # Silently fail to avoid disrupting service
             pass
@@ -264,7 +262,7 @@ def measure_db_query_time(func: Callable) -> Callable:
             result = await func(*args, **kwargs)
             return result
         finally:
-            duration = time.time() - start_time
+            _ = time.time() - start_time
             # TODO: Add database query metrics when needed
             # metrics.record_db_query_time(duration, func.__name__)
 
@@ -275,12 +273,9 @@ def measure_db_query_time(func: Callable) -> Callable:
             result = func(*args, **kwargs)
             return result
         finally:
-            duration = time.time() - start_time
+            _ = time.time() - start_time
             # TODO: Add database query metrics when needed
             # metrics.record_db_query_time(duration, func.__name__)
-
-    # Return appropriate wrapper based on function type
-    import asyncio
 
     if asyncio.iscoroutinefunction(func):
         return async_wrapper

@@ -3,8 +3,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from .handler import EvaluationHandler, get_handler
-from .schema import (
+from service.evaluation.handler import EvaluationHandler, get_handler
+from service.evaluation.schema import (
     BatchEvaluationRequest,
     BatchEvaluationResponse,
     EvaluationRequest,
@@ -31,6 +31,9 @@ def common_exception_handler(func):
             ) from e
         except FileNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Resource not found: {e}") from e
+        except HTTPException:
+            # Re-raise HTTPExceptions as-is (they're already properly formatted)
+            raise
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Internal server error: {e}") from e
         return result

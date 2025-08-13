@@ -74,8 +74,8 @@ class TestMinimalOpenCLIPEvaluator:
         fast_eval = MinimalOpenCLIPEvaluator.create_fast_evaluator()
         accurate_eval = MinimalOpenCLIPEvaluator.create_accurate_evaluator()
         
-        assert fast_eval.model_name == "ViT-B-32"
-        assert accurate_eval.model_name == "ViT-L-14"
+        assert fast_eval.similarity_model.model_name == "ViT-B-32"
+        assert accurate_eval.similarity_model.model_name == "ViT-L-14"
 
     @pytest.mark.asyncio
     async def test_evaluate_single_success(self, fast_evaluator, sample_image_path, sample_prompts):

@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 """
 Ray Serve main entry point for vision-language similarity service.
-This creates a complete Ray Serve deployment with the FastAPI app.
+This creates a fully contained Ray Serve deployment with the FastAPI app.
 """
 
 import contextlib
 import logging
+
 import ray
 from ray import serve
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
 # Import FastAPI app at module level to avoid circular imports
-from service.main import app
+from service.main import app  # noqa: E402
+
 
 @serve.deployment(
     name="vision-similarity-service",
@@ -37,7 +36,7 @@ from service.main import app
 @serve.ingress(app)
 class VisionSimilarityService:
     """Ray Serve deployment for vision-language similarity evaluation"""
-    
+
     def __init__(self):
         """Initialize the similarity service deployment"""
         self.logger = logging.getLogger(__name__)
@@ -46,33 +45,26 @@ class VisionSimilarityService:
 
 def main():
     """Main entry point for Ray Serve deployment"""
-    
+
     # Ray configuration for optimal performance
     ray_config = {
         "dashboard_host": "0.0.0.0",
         "ignore_reinit_error": True,
         "_metrics_export_port": 8080,
     }
-    
+
     logger.info("Initializing Ray cluster...")
     ray.init(**ray_config)
-    
+
     # Shutdown existing Ray Serve to ensure clean restart
     logger.info("Cleaning up any existing Ray Serve deployments...")
     with contextlib.suppress(Exception):
         serve.shutdown()
-    
+
     # Start Ray Serve with HTTP configuration
     logger.info("Starting Ray Serve...")
-    serve.start(
-        detached=False,
-        http_options={
-            "host": "0.0.0.0", 
-            "port": 8000,
-            "root_path": ""
-        }
-    )
-    
+    serve.start(detached=False, http_options={"host": "0.0.0.0", "port": 8000, "root_path": ""})
+
     # Create and deploy the service
     logger.info("Deploying vision-similarity-service...")
     deployment = VisionSimilarityService.bind()
