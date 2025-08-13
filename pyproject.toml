@@ -23,6 +23,7 @@ dependencies = [
     "Pillow>=10.0.0",
     "requests>=2.31.0",
     "tqdm>=4.65.0",
+    "psutil>=5.9.0",
     
     # Async dependencies
     "httpx>=0.24.0",  # Async HTTP client
@@ -41,6 +42,9 @@ dependencies = [
     # Additional service dependencies
     "python-multipart>=0.0.6",  # For file uploads if needed
     "gunicorn>=21.2.0",  # For production deployment
+    
+    # Ray Serve dependencies (optional - controlled by USE_RAY_SERVE env var)
+    "ray[serve]>=2.30.0",  # Ray Serve for ML model serving
 ]
 
 [project.optional-dependencies]
@@ -110,6 +114,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]
 addopts = [
     "--strict-markers",
     "--disable-warnings",

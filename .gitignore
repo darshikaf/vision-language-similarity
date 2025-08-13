@@ -146,7 +146,7 @@ tempo-data/
 
 # test data
 test-reports/
-tests/data/leonardo/*.png
+tests/data/samples/*.png
 
 # coverage data
 coverage/

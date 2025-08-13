@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-usage () { printf >&2 "Usage\n    $(basename $0) dev-setup|build-base|build-app|build-test|run-local|run-style|run-unit-test-suite|run-integration-test-suite|clean-docker-images|clean-docker-compose\n"; }
+usage () { printf >&2 "Usage\n    $(basename $0) dev-setup|build-base|build-app|build-test|build-ray-base|build-ray|run-local|run-ray-local|run-style|run-unit-test-suite|run-integration-test-suite|clean-docker-images|clean-docker-compose\n"; }
 usage_error () { printf >&2 "$(basename $0): $1\n"; usage; exit 2; }
 
 if [[ $# -ne 1 ]]; then
@@ -24,7 +24,10 @@ case "$1" in
 	build-base) OPTION=build-base;;
 	build-app) OPTION=build-app;;
 	build-test) OPTION=build-test;;
+	build-ray-base) OPTION=build-ray-base;;
+	build-ray) OPTION=build-ray;;
 	run-local) OPTION=run-local;;
+	run-ray-local) OPTION=run-ray-local;;
 	run-style) OPTION=run-style;;
 	run-style-inplace) OPTION=run-style-inplace;;
 	run-style-inplace-local) OPTION=run-style-inplace-local;;
@@ -106,11 +109,20 @@ IMAGE_NAME=${REPOSITORY}:${VERSION}
 IMAGE_NAME_LATEST=${REPOSITORY}:latest
 TEST_IMAGE_NAME=${REPOSITORY}:test.${VERSION}
 
+# Ray Serve image names
+RAY_BASE_IMAGE_VERSION=$(cat docker/ray-base.Dockerfile pyproject.toml | sha1sum | awk '{ print $1 }')
+RAY_BASE_IMAGE_NAME=${REPOSITORY}:ray-base.${RAY_BASE_IMAGE_VERSION}
+RAY_IMAGE_NAME=${REPOSITORY}:ray.${VERSION}
+RAY_IMAGE_NAME_LATEST=${REPOSITORY}:ray.latest
+
 # Export for docker-compose
 export BASE_IMAGE_NAME
 export IMAGE_NAME
 export IMAGE_NAME_LATEST
 export TEST_IMAGE_NAME
+export RAY_BASE_IMAGE_NAME
+export RAY_IMAGE_NAME
+export RAY_IMAGE_NAME_LATEST
 
 case "$OPTION" in
 	dev-setup)
@@ -159,8 +171,36 @@ case "$OPTION" in
 			-f docker/test.Dockerfile . \
 			|| exit $?
 		;;
+	build-ray-base)
+		echo Using Ray base image tag: ${RAY_BASE_IMAGE_VERSION}
+		# Check if image exists locally first
+		if docker image inspect ${RAY_BASE_IMAGE_NAME} >/dev/null 2>&1; then
+			echo "Ray base Docker image exists locally -- ${RAY_BASE_IMAGE_NAME}"
+		else
+			echo "Building Ray base image -- ${RAY_BASE_IMAGE_NAME}"
+			docker build \
+				--progress plain \
+				-t ${RAY_BASE_IMAGE_NAME} \
+				-f docker/ray-base.Dockerfile .
+		fi
+		;;
+	build-ray)
+		docker build \
+			--build-arg BASE_IMAGE_NAME=${RAY_BASE_IMAGE_NAME} \
+			--build-arg VERSION=${VERSION} \
+			--progress plain \
+			-t ${RAY_IMAGE_NAME} \
+			-t ${RAY_IMAGE_NAME_LATEST} \
+			-f docker/ray-service.Dockerfile .
+		;;
 	run-local)
 		docker-compose -f docker/docker-compose.service.yml -f docker/docker-compose.local.yml up \
+			--exit-code-from $PROJECT_ALIAS \
+			--force-recreate \
+			--always-recreate-deps
+		;;
+	run-ray-local)
+		docker-compose -f docker/docker-compose.ray-service.yml -f docker/docker-compose.ray-local.yml up \
 			--exit-code-from $PROJECT_ALIAS \
 			--force-recreate \
 			--always-recreate-deps

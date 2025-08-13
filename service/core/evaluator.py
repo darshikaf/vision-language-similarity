@@ -31,6 +31,10 @@ class MinimalOpenCLIPEvaluator:
     - CLIP standard scoring only
     - Robust error handling with async execution
     - Efficient batch processing with concurrency
+
+    TODO:
+    # Add thread pool cleanup
+    # Include GPU memory management
     """
 
     def __init__(
