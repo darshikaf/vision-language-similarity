@@ -3,6 +3,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from service.core.exceptions import ServiceError
 from service.evaluation.handler import EvaluationHandler, get_handler
 from service.evaluation.schema import (
     BatchEvaluationRequest,
@@ -18,12 +19,13 @@ router = APIRouter(prefix=EVALUATION_PREFIX, tags=["evaluation"])
 
 
 def common_exception_handler(func):
-    """Common exception handler decorator"""
-
     @wraps(func)
     async def inner_function(*args, **kwargs):
         try:
             result = await func(*args, **kwargs)
+        except ServiceError as e:
+            # Map custom service exceptions to HTTP status codes
+            raise HTTPException(e.http_status, str(e)) from e
         except ValueError as e:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
@@ -32,7 +34,7 @@ def common_exception_handler(func):
         except FileNotFoundError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Resource not found: {e}") from e
         except HTTPException:
-            # Re-raise HTTPExceptions as-is (they're already properly formatted)
+            # Re-raise HTTPExceptions as-is
             raise
         except Exception as e:
             raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, f"Internal server error: {e}") from e

@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 import torch
 
-from ..constants import APP_NAME
+from service.constants import APP_NAME
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
@@ -68,14 +68,37 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         self.MODEL_INFERENCE_DURATION = Histogram(
             "vision_similarity_model_inference_seconds",
             "Model inference processing time",
-            ["model_config", "device_type", "app_name"],
+            ["model_config", "model_name", "device_type", "app_name"],
             buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0],
+        )
+        
+        # Model loading time
+        self.MODEL_LOAD_DURATION = Histogram(
+            "vision_similarity_model_load_seconds",
+            "Model loading and initialization time",
+            ["model_config", "model_name", "app_name"],
+            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
+        )
+        
+        # Model-specific error tracking
+        self.MODEL_ERRORS = Counter(
+            "vision_similarity_model_errors_total",
+            "Model-specific error counts by type",
+            ["model_config", "model_name", "error_type", "app_name"],
+        )
+        
+        # Batch processing efficiency
+        self.BATCH_EFFICIENCY = Histogram(
+            "vision_similarity_batch_efficiency_ratio",
+            "Batch processing efficiency (batch_time / (single_time * batch_size))",
+            ["model_config", "model_name", "app_name"],
+            buckets=[0.1, 0.3, 0.5, 0.7, 0.9, 1.0, 1.2, 1.5, 2.0],
         )
 
         self.CLIP_SCORE_DISTRIBUTION = Histogram(
             "vision_similarity_clip_scores",
             "Distribution of CLIP similarity scores",
-            ["model_config", "app_name"],
+            ["model_config", "model_name", "app_name"],
             buckets=[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
         )
 
@@ -125,6 +148,13 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         )
         # Set app info (version to be added later)
         self.APP_INFO.labels(app_name=self.app_name, version="0.1.0").set(1)
+        
+        # Error pattern tracking
+        self.ERROR_PATTERNS = Counter(
+            "vision_similarity_error_patterns_total",
+            "Error patterns by type, context and model",
+            ["error_type", "error_context", "model_config", "app_name"],
+        )
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process HTTP request with metrics collection"""
@@ -178,17 +208,22 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         # Fallback to raw path
         return request.url.path
 
-    def record_inference_time(self, duration: float, model_config: str, device_type: str) -> None:
+    def record_inference_time(self, duration: float, model_config: str, device_type: str, model_name: str = "unknown") -> None:
         """Record model inference timing"""
         self.MODEL_INFERENCE_DURATION.labels(
             model_config=model_config,
+            model_name=model_name,
             device_type=device_type,
             app_name=self.app_name,
         ).observe(duration)
 
-    def record_clip_score(self, score: float, model_config: str) -> None:
+    def record_clip_score(self, score: float, model_config: str, model_name: str = "unknown") -> None:
         """Record CLIP similarity score"""
-        self.CLIP_SCORE_DISTRIBUTION.labels(model_config=model_config, app_name=self.app_name).observe(score)
+        self.CLIP_SCORE_DISTRIBUTION.labels(
+            model_config=model_config,
+            model_name=model_name,
+            app_name=self.app_name
+        ).observe(score)
 
     def record_image_processing_time(self, duration: float, source_type: str) -> None:
         """Record image processing timing"""
@@ -202,6 +237,40 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         """Record evaluation error"""
         self.EVALUATION_ERRORS.labels(
             error_type=error_type,
+            model_config=model_config,
+            app_name=self.app_name,
+        ).inc()
+    
+    def record_model_error(self, error_type: str, model_config: str, model_name: str) -> None:
+        """Record model-specific error"""
+        self.MODEL_ERRORS.labels(
+            model_config=model_config,
+            model_name=model_name,
+            error_type=error_type,
+            app_name=self.app_name,
+        ).inc()
+    
+    def record_model_load_time(self, duration: float, model_config: str, model_name: str) -> None:
+        """Record model loading time"""
+        self.MODEL_LOAD_DURATION.labels(
+            model_config=model_config,
+            model_name=model_name,
+            app_name=self.app_name,
+        ).observe(duration)
+    
+    def record_batch_efficiency(self, efficiency_ratio: float, model_config: str, model_name: str) -> None:
+        """Record batch processing efficiency"""
+        self.BATCH_EFFICIENCY.labels(
+            model_config=model_config,
+            model_name=model_name,
+            app_name=self.app_name,
+        ).observe(efficiency_ratio)
+    
+    def record_error_pattern(self, error_type: str, error_context: str, model_config: str) -> None:
+        """Record simple error pattern for monitoring"""
+        self.ERROR_PATTERNS.labels(
+            error_type=error_type,
+            error_context=error_context,
             model_config=model_config,
             app_name=self.app_name,
         ).inc()
@@ -251,32 +320,3 @@ def metrics_endpoint(request: Request) -> StarletteResponse:
     """Prometheus metrics endpoint"""
     return StarletteResponse(generate_latest(), media_type="text/plain")
 
-
-def measure_db_query_time(func: Callable) -> Callable:
-    """Decorator to measure database query time (future use)"""
-
-    @wraps(func)
-    async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-        start_time = time.time()
-        try:
-            result = await func(*args, **kwargs)
-            return result
-        finally:
-            _ = time.time() - start_time
-            # TODO: Add database query metrics when needed
-            # metrics.record_db_query_time(duration, func.__name__)
-
-    @wraps(func)
-    def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-        start_time = time.time()
-        try:
-            result = func(*args, **kwargs)
-            return result
-        finally:
-            _ = time.time() - start_time
-            # TODO: Add database query metrics when needed
-            # metrics.record_db_query_time(duration, func.__name__)
-
-    if asyncio.iscoroutinefunction(func):
-        return async_wrapper
-    return sync_wrapper

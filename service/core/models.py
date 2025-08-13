@@ -10,6 +10,7 @@ class EvaluationResult:
     clip_score: float
     processing_time_ms: float
     error: str | None = None
+    error_type: str | None = None
 
 
 @dataclass

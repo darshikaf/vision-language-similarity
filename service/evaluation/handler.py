@@ -66,15 +66,8 @@ class EvaluationHandler:
 
             # Record evaluation errors
             if result.error is not None:
-                error_type = "evaluation_error"
-                # Try to extract specific error type from error message
-                if "network" in result.error.lower() or "url" in result.error.lower():
-                    error_type = "network_error"
-                elif "image" in result.error.lower():
-                    error_type = "image_processing_error"
-                elif "model" in result.error.lower():
-                    error_type = "model_error"
-
+                # Extract error type from exception
+                error_type = getattr(result, 'error_type', 'evaluation_error')
                 metrics.record_evaluation_error(error_type, model_config)
 
         except RuntimeError:

@@ -1,7 +1,3 @@
-"""
-Async image loading utilities with support for URLs, files, and PIL Images
-"""
-
 import asyncio
 import base64
 from io import BytesIO
@@ -11,6 +7,8 @@ from urllib.parse import urlparse
 import aiofiles
 import httpx
 from PIL import Image
+
+from service.core.exceptions import ImageProcessingError, NetworkError
 
 
 class ImageLoader:
@@ -72,7 +70,7 @@ class ImageLoader:
     async def _load_from_url(self, url: str) -> Image.Image:
         """Load image from URL with retry logic"""
         if not self._http_client:
-            raise RuntimeError("HTTP client not initialized. Use async context manager.")
+            raise ImageProcessingError("HTTP client not initialized. Use async context manager.")
 
         max_retries = 3
 
@@ -88,7 +86,7 @@ class ImageLoader:
             except httpx.HTTPStatusError as e:
                 # Don't retry client errors (4xx), but retry server errors (5xx)
                 if e.response.status_code < 500:
-                    raise ValueError(f"Failed to fetch image from URL {url}: HTTP {e.response.status_code}") from e
+                    raise NetworkError(f"Failed to fetch image from URL {url}: HTTP {e.response.status_code}") from e
 
             except httpx.RequestError:
                 # Network errors - will retry
@@ -96,7 +94,7 @@ class ImageLoader:
 
             except Exception as e:
                 # PIL or other processing errors - don't retry
-                raise ValueError(f"Failed to process image from URL {url}: {e}") from e
+                raise ImageProcessingError(f"Failed to process image from URL {url}: {e}") from e
 
             # Retry with exponential backoff
             if attempt < max_retries - 1:
@@ -104,7 +102,7 @@ class ImageLoader:
                 await asyncio.sleep(delay)
 
         # All retries exhausted
-        raise ValueError(f"Failed to fetch image from URL {url} after {max_retries} attempts")
+        raise NetworkError(f"Failed to fetch image from URL {url} after {max_retries} attempts")
 
     async def _load_from_file(self, file_path: str) -> Image.Image:
         """Load image from local file with async I/O"""
@@ -122,7 +120,7 @@ class ImageLoader:
             return image
 
         except Exception as e:
-            raise ValueError(f"Failed to load image from file {file_path}: {e}") from e
+            raise ImageProcessingError(f"Failed to load image from file {file_path}: {e}") from e
 
     async def _load_from_base64(self, data_uri: str) -> Image.Image:
         """Load image from base64 data URI"""
@@ -133,7 +131,7 @@ class ImageLoader:
             image = await asyncio.to_thread(self._process_image_bytes, image_data)
             return image
         except Exception as e:
-            raise ValueError(f"Failed to process base64 image: {e}") from e
+            raise ImageProcessingError(f"Failed to process base64 image: {e}") from e
 
     @staticmethod
     def _decode_base64(encoded_data: str) -> bytes:

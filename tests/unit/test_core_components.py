@@ -1,6 +1,7 @@
 import pytest
 import torch
 from service.core import DeviceManager, ImageLoader, MinimalOpenCLIPEvaluator, ModelConfig
+from service.core.exceptions import ImageProcessingError, ValidationError
 
 
 class TestDeviceManager:
@@ -49,7 +50,7 @@ class TestImageLoader:
     def test_load_invalid_file_error(self):
         """Test error handling for non-existent files"""
         loader = ImageLoader()
-        with pytest.raises(ValueError, match="Failed to load image"):
+        with pytest.raises(ImageProcessingError, match="Failed to load image from file"):
             loader.load_image_sync("non_existent_file.jpg")
 
 
@@ -94,5 +95,5 @@ class TestMinimalOpenCLIPEvaluator:
         images = ["image1.jpg", "image2.jpg"]
         prompts = ["prompt1"]  # Mismatched length
         
-        with pytest.raises(ValueError, match="Mismatch"):
+        with pytest.raises(ValidationError, match="Mismatch"):
             await fast_evaluator.evaluate_batch(images, prompts)
