@@ -68,7 +68,7 @@ class MinimalOpenCLIPEvaluator:
         self.precision = DeviceManager.get_optimal_precision(self.device)
 
         # Thread pool for PyTorch operations
-        self.max_workers = max_workers or min(32, (asyncio.get_event_loop().get_debug() and 1) or 4)
+        self.max_workers = max_workers or 4  # Simple default, configurable via constructor
         self._executor = ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="torch_")
 
         # Initialize components
