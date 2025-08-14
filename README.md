@@ -123,6 +123,82 @@ curl "http://localhost:8000/evaluator/health"
 }
 ```
 
+## Command Line Interface
+
+The repository includes a convenient CLI tool for batch evaluation of images with CLIP scores:
+
+### Basic Usage
+
+```bash
+# Evaluate images from a CSV file
+cd app
+python evaluation_cli.py path/to/your_dataset.csv
+
+# Use batch evaluation (faster for multiple images)
+python evaluation_cli.py path/to/your_dataset.csv --batch --batch-size 32
+
+# Compare single vs batch performance
+python evaluation_cli.py path/to/your_dataset.csv --compare
+
+# Use custom service URL
+python evaluation_cli.py path/to/your_dataset.csv --service-url http://localhost:8000
+```
+
+### CSV File Format
+
+Your CSV file should contain at least these columns:
+- `url`: Image URL or file path
+- `caption`: Text description to compare with the image
+
+Example CSV:
+```csv
+url,caption
+https://example.com/image1.jpg,A cat sitting on a table
+https://example.com/image2.jpg,A dog running in a park
+/path/to/local/image.jpg,A beautiful sunset over mountains
+```
+
+### CLI Options
+
+- `--batch`: Use batch evaluation API (recommended for multiple images)
+- `--batch-size N`: Set batch size (default: 32)
+- `--compare`: Run both single and batch evaluation to compare performance
+- `--service-url URL`: Custom service URL (default: http://localhost:8000)
+
+### Output
+
+The CLI tool will:
+1. Process all images in your CSV file
+2. Add a `clip_score` column with the evaluation results
+3. Save results to `{filename}_with_scores.csv`
+4. Display processing statistics and performance metrics
+
+### Example Run
+
+```bash
+➜ python app/evaluation_cli.py tests/data/samples/challenge_set.csv --compare
+Processing: tests/data/samples/challenge_set.csv
+Data directory: tests/data/samples
+Loaded 51 rows
+Running comparison mode: both single and batch evaluation
+
+=== Running Single Evaluation ===
+Single evaluation completed: 51/51 successful
+Time: 46.73s, Speed: 1.09 images/sec
+
+=== Running Batch Evaluation ===
+Batch evaluation completed: 51/51 successful
+Time: 8.81s, Speed: 5.79 images/sec
+Comparison statistics saved to: tests/data/samples/challenge_set_comparison_stats.csv
+
+=== Performance Comparison ===
+Single: 46.73s (1.09 img/s)
+Batch:  8.81s (5.79 img/s)
+Speedup: 5.31x faster with batch
+Results saved to: tests/data/samples/challenge_set_with_scores.csv
+Successfully processed 51/51 images
+```
+
 ## Development
 
 ### Running Tests
