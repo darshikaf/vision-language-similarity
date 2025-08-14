@@ -13,7 +13,7 @@ class TestEvaluationAPI:
         assert response.status_code == status.HTTP_200_OK
 
     def test_models_endpoint(self, test_client):
-        response = test_client.get("/evaluator/v1/evaluation/models")
+        response = test_client.get("/evaluator/v1/admin/models")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         

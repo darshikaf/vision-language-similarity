@@ -4,11 +4,34 @@ services:
     image: ${IMAGE_NAME_LATEST}
     ports:
       - "8000:8000"
+      - "8080:8080"  # Metrics port
     environment:
       - PYTHONPATH=/app
+      # Local development configuration
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - MODEL_MAX_WORKERS=2
+      - MODEL_TIMEOUT=30.0
+      - MODEL_CACHE_DIR=/app/model-cache
+      - ENABLE_MIXED_PRECISION=true
+      - GPU_MEMORY_FRACTION=0.8
+      - MAX_BATCH_SIZE=50
+      - MAX_IMAGE_SIZE_MB=10
+      - RATE_LIMIT_PER_MINUTE=500
+      - ENABLE_METRICS=true
+      - ENABLE_TRACING=true
+      - METRICS_PORT=8080
+      # Example: Add model via environment variable
+      - MODEL_CONFIG_LOCAL={"model_name":"ViT-B-16","pretrained":"laion2b_s34b_b88k","description":"Local dev model","memory_gb":3.0,"avg_inference_time_ms":100,"accuracy_score":0.88,"enabled":true}
     volumes:
       # Mount cache directory to persist model downloads
-      - model_cache:/root/.cache/openclip
+      - model_cache:/app/model-cache
+      # Mount local configuration files for dynamic model configuration
+      - ../config/models.json:/app/config/models.json:ro
+      # Optional: Mount source code for development
+      - ../service:/app/service:ro
+    env_file:
+      - ../.env.local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/evaluator/health"]
       interval: 30s

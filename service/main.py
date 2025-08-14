@@ -3,7 +3,7 @@ import asyncio
 from fastapi import FastAPI
 from starlette.responses import JSONResponse
 
-from service import evaluation
+from service import admin, evaluation
 from service.constants import APP_NAME, APP_TITLE, PATH_PREFIX
 from service.observability.prometheus_middleware import (
     PrometheusMiddleware,
@@ -27,6 +27,7 @@ app.add_route(f"{PATH_PREFIX}/metrics", metrics_endpoint)
 
 # Include routers
 app.include_router(evaluation.router, prefix=PATH_PREFIX)
+app.include_router(admin.router, prefix=PATH_PREFIX)
 
 
 @app.on_event("startup")

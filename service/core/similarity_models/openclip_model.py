@@ -83,8 +83,8 @@ class OpenCLIPSimilarityModel(SimilarityModel):
                 metrics = get_metrics_middleware()
                 if metrics:
                     metrics.record_model_error("model_load_error", self.model_config, self.model_name)
-            except Exception as e:
-                logger.debug(f"Metrics recording failed: {e}")
+            except Exception as metrics_error:
+                logger.debug(f"Metrics recording failed: {metrics_error}")
 
             raise ModelError(f"Failed to load model {self.model_name}/{self.pretrained}: {e}") from e
 
@@ -169,8 +169,10 @@ class OpenCLIPSimilarityModel(SimilarityModel):
             image_features = F.normalize(self.model.encode_image(image_tensor), p=2, dim=-1)
             text_features = F.normalize(self.model.encode_text(text_tokens), p=2, dim=-1)
 
-            # Calculate similarity (original implementation)
+            # Calculate similarity
             raw_cosine = torch.cosine_similarity(image_features, text_features, dim=-1).item()
+            # TODO: Profile if below implementation is faster because L2 normalization is already applied
+            # raw_cosine = torch.sum(image_features * text_features, dim=-1).item()
 
             processing_time = (time.time() - start_time) * 1000
             return raw_cosine, processing_time
@@ -192,7 +194,7 @@ class OpenCLIPSimilarityModel(SimilarityModel):
             image_features = F.normalize(self.model.encode_image(image_tensors), p=2, dim=-1)
             text_features = F.normalize(self.model.encode_text(text_tokens), p=2, dim=-1)
 
-            # Calculate similarities for entire batch (original implementation)
+            # Calculate similarities for entire batch
             cosine_similarities = torch.sum(image_features * text_features, dim=-1)
             raw_cosines = [sim.item() for sim in cosine_similarities]
 
@@ -212,16 +214,35 @@ class OpenCLIPSimilarityModel(SimilarityModel):
         )
         return base_info
 
+    def __enter__(self):
+        """Context manager entry"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit with proper cleanup"""
+        self.cleanup()
+
     def cleanup(self) -> None:
-        """Clean up resources including thread pool"""
+        """Clean up resources including thread pool with graceful shutdown"""
         try:
-            if hasattr(self, '_executor') and self._executor:
-                self._executor.shutdown(wait=False)
+            if hasattr(self, "_executor") and self._executor:
+                # Graceful shutdown - wait for current tasks to complete
+                self._executor.shutdown(wait=True)
                 self._executor = None
                 logger.debug(f"Cleaned up thread pool for model {self.model_name}")
         except Exception as e:
             logger.warning(f"Error during cleanup: {e}")
+            # Force shutdown if graceful shutdown failed
+            if hasattr(self, "_executor") and self._executor:
+                try:
+                    self._executor.shutdown(wait=False)
+                    self._executor = None
+                except Exception:
+                    pass  # Ignore force shutdown errors
 
     def __del__(self):
-        """Ensure cleanup on object deletion"""
-        self.cleanup()
+        """Minimal cleanup on object deletion"""
+        try:
+            self.cleanup()
+        except Exception:
+            pass  # Ignore errors in __del__ to avoid issues

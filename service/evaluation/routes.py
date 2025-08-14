@@ -1,4 +1,5 @@
 from functools import wraps
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,6 +13,8 @@ from service.evaluation.schema import (
     EvaluationResponse,
     HealthResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 EVALUATION_PREFIX = "/v1/evaluation"
 
@@ -74,30 +77,6 @@ async def evaluate_batch(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Batch request must contain at least one evaluation")
 
     return await handler.evaluate_batch(request)
-
-
-@router.get(
-    "/models",
-    summary="Get available model configurations",
-    description="List available model configurations and their details",
-)
-async def get_available_models() -> dict[str, Any]:
-    """Get available model configurations"""
-    return {
-        "available_configs": {
-            "fast": {
-                "model_name": "ViT-B-32",
-                "pretrained": "laion2b_s34b_b79k",
-                "description": "Faster inference, good performance",
-            },
-            "accurate": {
-                "model_name": "ViT-L-14",
-                "pretrained": "laion2b_s32b_b82k",
-                "description": "Higher accuracy, slower inference",
-            },
-        },
-        "default_config": "fast",
-    }
 
 
 @router.get(

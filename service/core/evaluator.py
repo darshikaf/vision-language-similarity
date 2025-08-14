@@ -118,7 +118,10 @@ class MinimalOpenCLIPEvaluator:
                 metrics = get_metrics_middleware()
                 if metrics:
                     metrics.record_inference_time(
-                        inference_time / 1000, self.model_config_name, self.device.type, self.similarity_model.model_name
+                        inference_time / 1000,
+                        self.model_config_name,
+                        self.device.type,
+                        self.similarity_model.model_name,
                     )
 
                     metrics.record_clip_score(clip_score, self.model_config_name, self.similarity_model.model_name)
@@ -138,21 +141,23 @@ class MinimalOpenCLIPEvaluator:
                 error=None,
             )
 
-        except Exception as e:
-            logger.error(f"Async evaluation failed for {image_input}: {e}")
-            error_type = getattr(e, "error_type", None) if isinstance(e, ServiceError) else None
+        except Exception as main_exception:
+            logger.error(f"Async evaluation failed for {image_input}: {main_exception}")
+            error_type = (
+                getattr(main_exception, "error_type", None) if isinstance(main_exception, ServiceError) else None
+            )
 
             # -- Metrics: model-specific errors
             try:
                 metrics = get_metrics_middleware()
                 if metrics:
-                    error_name = error_type or type(e).__name__
+                    error_name = error_type or type(main_exception).__name__
                     metrics.record_model_error(error_name, self.model_config_name, self.similarity_model.model_name)
                     metrics.record_error_pattern(error_name, "evaluation", self.model_config_name)
-            except Exception as e:
-                logger.debug(f"Metrics recording failed: {e}")
+            except Exception as metrics_exception:
+                logger.debug(f"Metrics recording failed: {metrics_exception}")
 
-            return self._create_failed_result(image_input, text_prompt, str(e), error_type)
+            return self._create_failed_result(image_input, text_prompt, str(main_exception), error_type)
 
     async def evaluate_batch(  # noqa: C901
         self,
@@ -203,7 +208,7 @@ class MinimalOpenCLIPEvaluator:
                                 return img_input.convert("RGB"), idx, None
                             else:
                                 image = await image_loader.load_image(img_input)
-                                return image, idx, None # (image_result, idx, error_message)
+                                return image, idx, None  # (image_result, idx, error_message)
                         except Exception as e:
                             logger.error(f"Failed to load image {img_input}: {e}")
                             error_type = getattr(e, "error_type", None) if isinstance(e, ServiceError) else None
