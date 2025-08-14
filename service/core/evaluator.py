@@ -175,6 +175,8 @@ class MinimalOpenCLIPEvaluator:
 
         Returns:
             List of EvaluationResult objects
+
+        _IMPORTANT_: Currently not used for batch processing due to unresolved model caching issues.
         """
         if len(image_inputs) != len(text_prompts):
             raise ValidationError(f"Mismatch: {len(image_inputs)} images vs {len(text_prompts)} prompts")

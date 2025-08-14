@@ -2,6 +2,45 @@
 
 A high-performance vision-language similarity evaluation service built with OpenCLIP models. This service provides CLIP score calculations for comparing images with text descriptions, supporting both single and batch processing with comprehensive observability, profiling, and advanced ML serving capabilities.
 
+## Table of Contents
+
+- [Features](#features)
+- [Quick Start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Development Setup](#development-setup)
+  - [Ray Serve Deployment (Advanced ML Serving)](#ray-serve-deployment-advanced-ml-serving)
+- [API Usage](#api-usage)
+  - [Single Image Evaluation](#single-image-evaluation)
+  - [Batch Evaluation](#batch-evaluation)
+  - [Health Check](#health-check)
+- [Command Line Interface](#command-line-interface)
+  - [Basic Usage](#basic-usage)
+  - [CSV File Format](#csv-file-format)
+  - [CLI Options](#cli-options)
+  - [Output](#output)
+  - [Example Run](#example-run)
+- [Development](#development)
+  - [Running Tests](#running-tests)
+  - [Code Quality](#code-quality)
+  - [Observability Stack](#observability-stack)
+  - [Load Testing](#load-testing)
+  - [Performance Profiling](#performance-profiling)
+- [Docker Deployment](#docker-deployment)
+  - [Standard FastAPI Service](#standard-fastapi-service)
+  - [Ray Serve Deployment](#ray-serve-deployment)
+- [Architecture](#architecture)
+  - [Standard FastAPI Service](#standard-fastapi-service-1)
+  - [Ray Serve Deployment](#ray-serve-deployment-1)
+  - [Core Components](#core-components)
+- [API Endpoints](#api-endpoints)
+- [CLIP Score Calculation](#clip-score-calculation)
+- [Contributing](#contributing)
+- [Performance Characteristics](#performance-characteristics)
+- [Troubleshooting](#troubleshooting)
+  - [Common Issues](#common-issues)
+  - [Debug Mode](#debug-mode)
+  - [Performance Optimization](#performance-optimization)
+
 ## Features
 
 - **CLIP Score Evaluation**: Calculate semantic similarity between images and text using state-of-the-art OpenCLIP models
@@ -233,9 +272,9 @@ Start the full observability stack for monitoring and debugging:
 make run-local-otel
 
 # Access dashboards
-# Grafana: http://localhost:3000 (admin/grafana)  
+# Grafana: http://localhost:3000 (admin/grafana) 
+# Grafana Dashboard: http://localhost:3000/d/vision-language-similarity/vision-language-similarity-service 
 # Prometheus: http://localhost:9090
-# Jaeger: http://localhost:16686
 
 # Clean up
 make clean-otel
@@ -387,4 +426,6 @@ docker-compose logs -f vision-language-similarity-service
 - Use 'fast' model for development and real-time applications
 - Increase batch size for throughput (watch memory usage)
 - Enable mixed precision on CUDA devices (automatic)
+- Enable ensemble models for similarity calculation
+- Intelligent prompt classification
 - Use Ray Serve for auto-scaling production workloads
