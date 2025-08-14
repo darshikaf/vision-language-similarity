@@ -1,0 +1,507 @@
+# Vision-Language Similarity Service - Complete Documentation
+
+A high-performance vision-language similarity evaluation service built with OpenCLIP models. This service provides CLIP score calculations for comparing images with text descriptions, supporting both single and batch processing with comprehensive observability and advanced ML serving capabilities.
+
+## Project Structure
+
+```
+vision-language-similarity/
+├── service/                    # Main FastAPI service
+│   ├── core/                   # Core evaluation logic
+│   │   ├── evaluator.py        # Main CLIP evaluation with async processing
+│   │   ├── similarity_models/  # OpenCLIP model integration
+│   │   │   ├── base.py         # Abstract similarity model interface
+│   │   │   ├── factory.py      # Model factory for different configurations
+│   │   │   └── openclip_model.py # OpenCLIP implementation with mixed precision
+│   │   ├── image_loader.py     # Async image loading from multiple sources
+│   │   ├── device_manager.py   # Automatic device selection (CUDA/MPS/CPU)
+│   │   ├── models.py           # Data models and schemas
+│   │   └── exceptions.py       # Custom exception classes
+│   ├── evaluation/             # Evaluation API endpoints
+│   │   ├── handler.py          # Async evaluation request handler
+│   │   ├── routes.py           # FastAPI route definitions
+│   │   └── schema.py           # Request/response schemas
+│   ├── admin/                  # Admin API endpoints
+│   │   └── routes.py           # Model management endpoints
+│   ├── config/                 # Configuration management
+│   │   ├── model_configs.py    # Dynamic model registry
+│   │   └── settings.py         # Application settings
+│   ├── observability/          # Monitoring and metrics
+│   │   └── prometheus_middleware.py # Custom metrics for ML workloads
+│   ├── main.py                 # FastAPI application setup
+│   └── ray_main.py             # Ray Serve deployment entry point
+├── app/                        # CLI tools and utilities
+│   └── evaluation_cli.py       # Command-line evaluation tool
+├── tests/                      # Comprehensive test suite
+│   ├── unit/                   # Unit tests for components
+│   ├── integration/            # End-to-end integration tests
+│   ├── fixtures/               # Test fixtures and data
+│   └── data/samples/           # Test dataset (Leonardo AI images)
+├── docker/                     # Docker deployment configurations
+│   ├── base.Dockerfile         # Base image with dependencies
+│   ├── service.Dockerfile      # FastAPI service image
+│   ├── ray-base.Dockerfile     # Ray base image with ML dependencies
+│   ├── ray-service.Dockerfile  # Ray Serve deployment image
+│   └── observability/          # Observability stack configuration
+├── evaluator_profiler/         # Performance profiling tools
+├── load_tests/                 # Load testing with Locust
+├── config/                     # Configuration files
+│   └── models.json             # Model specifications
+└── scripts/                    # Build and deployment scripts
+```
+
+## Core Features
+
+### CLIP Score Evaluation
+- **Standard CLIP Score**: `max(100 * cosine_similarity(image_embedding, text_embedding), 0)`
+- **Model Support**: ViT-B-32 (fast), ViT-L-14 (accurate), and custom configurations
+- **Mixed Precision**: Automatic fp16 optimization on CUDA devices
+- **Error Handling**: Graceful degradation with detailed error reporting
+
+### Batch Processing Optimization
+- **Performance**: 5.29x speedup over single evaluation through concurrent async processing
+- **Architecture**: Uses `asyncio.gather()` for true concurrency rather than sequential batching
+- **Memory Management**: Linear scaling with concurrent requests, automatic cleanup
+- **Error Isolation**: Failed images don't interrupt batch processing
+
+### Model Management
+- **Dynamic Configuration**: Load model specs from files, environment variables, or defaults
+- **Caching**: Models cached as singletons to avoid reloading overhead
+- **Multiple Sources**: Support for JSON files, environment variables, and built-in defaults
+- **Hot Reloading**: Runtime configuration updates without service restart
+
+### Async Image Loading
+- **Multiple Sources**: URLs, file paths, base64 data URIs, PIL Image objects
+- **Connection Pooling**: Reusable HTTP connections with configurable limits
+- **Retry Logic**: Exponential backoff for network failures
+- **Thread Pool Integration**: Non-blocking PIL operations
+
+## API Documentation
+
+### Single Evaluation Endpoint
+**POST** `/evaluator/v1/evaluation/single`
+
+Request:
+```json
+{
+  "image_input": "https://example.com/image.jpg",
+  "text_prompt": "A beautiful sunset over mountains",
+  "model_config_name": "fast"
+}
+```
+
+Response:
+```json
+{
+  "image_input": "https://example.com/image.jpg",
+  "text_prompt": "A beautiful sunset over mountains",
+  "clip_score": 82.5,
+  "processing_time_ms": 45.2,
+  "model_used": "fast",
+  "error": null
+}
+```
+
+### Batch Evaluation Endpoint
+**POST** `/evaluator/v1/evaluation/batch`
+
+Request:
+```json
+{
+  "evaluations": [
+    {
+      "image_input": "https://example.com/image1.jpg",
+      "text_prompt": "A cat sitting on a table",
+      "model_config_name": "fast"
+    }
+  ],
+  "batch_size": 32,
+  "show_progress": true
+}
+```
+
+Response:
+```json
+{
+  "results": [...],
+  "total_processed": 10,
+  "total_successful": 9,
+  "total_failed": 1,
+  "total_processing_time_ms": 2500.0
+}
+```
+
+### Admin Endpoints
+- `GET /evaluator/v1/admin/models`: List available model configurations
+- `GET /evaluator/v1/admin/models/specs`: Get detailed model specifications
+- `GET /evaluator/v1/admin/models/{config_name}/info`: Get specific model information
+- `GET /evaluator/v1/admin/status`: Service status and health information
+
+## Deployment Architectures
+
+### Standard FastAPI Deployment
+**Use Cases**: Development, simple production deployments, cost-conscious deployments
+
+**Characteristics**:
+- Simple horizontal scaling with load balancers
+- Standard container orchestration (Kubernetes, Docker Compose)
+- Manual scaling and configuration management
+- Basic health checks and monitoring
+
+**Docker Commands**:
+```bash
+make build-base
+make build-app  
+make run-local
+```
+
+### Ray Serve Deployment
+**Use Cases**: Production ML workloads, hyperscale deployments, advanced ML serving
+
+**Key Capabilities**:
+- **ML-Native Autoscaling**: Request-aware scaling based on queue depth and processing characteristics
+- **Intelligent Traffic Management**: Adaptive request routing and backpressure handling
+- **Multi-Model Serving**: Simultaneous deployment of multiple model versions with traffic splitting
+- **Advanced Deployment Patterns**: Blue-green deployments, canary releases, A/B testing
+- **Fault Tolerance**: Automatic replica recovery, circuit breaker patterns, graceful degradation
+- **Resource Optimization**: Model weight sharing, GPU memory pooling, dynamic resource allocation
+
+**Ray Serve Configuration**:
+```python
+@serve.deployment(
+    name="vision-similarity-service",
+    num_replicas="auto",
+    autoscaling_config={
+        "min_replicas": 1,
+        "max_replicas": 4,
+        "target_num_ongoing_requests_per_replica": 10,
+    },
+    ray_actor_options={
+        "num_cpus": 1,
+        "num_gpus": 0,
+        "memory": 4294967296,  # 4GB
+    },
+)
+```
+
+**Ray Commands**:
+```bash
+make build-ray-base
+make build-ray
+make run-local-ray
+```
+
+## Performance Analysis
+
+### Current Performance Characteristics
+- **Single Evaluation**: 172ms average per image (ViT-B-32)
+- **Batch Processing**: 8.77s for 51 images (5.81 images/sec, 5.29x speedup)
+- **Memory Usage**: 2.5-3GB base (model weights) + 50-100MB per concurrent request
+- **Scaling**: Linear memory scaling with concurrent requests
+
+### Time Breakdown (Single Evaluation)
+```
+Total: 172ms
+├── Image Loading: 50-150ms (network dependent, 30-87% of total time)
+├── Tensor Conversion: 10-20ms (PIL → torch.Tensor)
+├── Model Inference: 50-100ms (feature extraction + similarity)
+├── Feature Normalization: 5-10ms
+└── Cosine Similarity: 1-2ms
+```
+
+### Memory Footprint
+**Static Memory (~3.7GB total)**:
+- Model weights: 2.5-3GB (ViT-L-14: ~2.8GB, ViT-B-32: ~350MB)
+- PyTorch runtime: ~500MB (CUDA context, computation graphs)
+- Application overhead: ~200MB (FastAPI, HTTP pools, thread pools)
+
+**Dynamic Memory (per request)**:
+- Peak allocation: 50-100MB per concurrent evaluation
+- Image preprocessing: 10-50MB (varies with image size)
+- Tensor operations: 20-40MB (feature vectors, intermediate computations)
+
+### Performance Bottlenecks
+1. **I/O Dominance**: Image loading consumes majority of processing time
+2. **Sequential Operations**: No pipelining of preprocessing steps
+3. **Memory Churn**: Repeated tensor allocation/deallocation
+
+### Optimization Strategies
+1. **True GPU Batch Processing**: Single batch GPU calls instead of individual inferences
+2. **Async Preprocessing Pipeline**: Overlapping image loading, tensor conversion, and inference
+3. **Feature Caching**: LRU cache for repeated images (90% time reduction for cache hits)
+4. **Memory Pool Management**: Tensor pooling to reuse allocated memory
+5. **Mixed Precision Expansion**: Extend fp16 support to MPS and bf16 for CPUs
+
+## Observability and Monitoring
+
+### Metrics Collection
+**Prometheus Metrics**:
+- `http_requests_total`: HTTP request counts by endpoint and status
+- `http_request_duration_seconds`: Request latency histograms
+- `clip_score_distribution`: CLIP score value distributions
+- `inference_time_seconds`: Model inference timing
+- `batch_processing_efficiency`: Batch vs single processing efficiency
+- `image_processing_time_seconds`: Image loading and preprocessing timing
+- `model_load_time_seconds`: Model loading duration
+- `evaluation_errors_total`: Error counts by type and model
+
+**Custom ML Metrics**:
+- Model-specific accuracy and performance tracking
+- GPU utilization and memory usage
+- Request queue depths and processing backlogs
+- Feature extraction timing and batching efficiency
+
+### Observability Stack
+**Components**:
+- **Prometheus**: Time-series metrics storage and querying
+- **Grafana**: Visualization dashboards with ML-specific panels
+- **Jaeger**: Distributed tracing for request flows
+- **OpenTelemetry**: Auto-instrumentation for FastAPI and HTTP requests
+- **Loki + Promtail**: Log aggregation and analysis
+
+**Dashboard Access**:
+- Grafana: http://localhost:3000 (admin/grafana)
+- Prometheus: http://localhost:9090
+
+### Health Checks
+**Endpoint**: `GET /evaluator/health`
+- Model availability and loading status
+- GPU memory status (if applicable)
+- Processing queue health
+- System resource utilization
+
+## Testing Strategy
+
+### Test Structure
+```
+tests/
+├── unit/                       # Component unit tests
+│   ├── test_core_components.py     # Core logic testing
+│   ├── test_evaluation_handler.py  # Handler testing
+│   ├── test_evaluation_api.py      # API endpoint testing
+│   └── test_model_config_management.py # Configuration testing
+├── integration/                # End-to-end tests
+│   └── test_end_to_end_evaluation.py # Full workflow testing
+├── fixtures/                   # Shared test fixtures
+│   ├── evaluator_fixtures.py      # Model and evaluator fixtures
+│   ├── data_fixtures.py           # Test data generators
+│   └── api_fixtures.py            # HTTP client fixtures
+└── data/samples/               # Test dataset (Leonardo AI images)
+```
+
+### Test Commands
+```bash
+# Run all tests with coverage
+python -m pytest tests/
+
+# Run unit tests only
+python -m pytest tests/unit/
+
+# Run integration tests only
+python -m pytest tests/integration/
+
+# Run tests in Docker
+make run-unit-test-suite
+make run-integration-test-suite
+```
+
+### Test Features
+- **Session-scoped Fixtures**: Models loaded once per test session to avoid reloading overhead
+- **Async Testing**: Full async/await support with pytest-asyncio
+- **Coverage Reporting**: HTML, JSON, and terminal coverage reports
+- **Performance Testing**: Built-in timing and memory usage validation
+- **Real Data Testing**: Uses Leonardo AI dataset for realistic evaluation scenarios
+
+## Load Testing
+
+### Locust Integration
+**Configuration**: `load_tests/locustfile.py`
+- Single and batch evaluation endpoints
+- Realistic image URLs and text prompts
+- Configurable user counts and spawn rates
+- Performance metrics collection
+
+**Load Testing Commands**:
+```bash
+# Interactive load test with web UI
+make load-test  # Web UI: http://localhost:8089
+
+# Light development load test
+make load-test-light  # 5 users, 2 minutes
+
+# CI/CD performance validation
+make load-test-ci  # Automated performance thresholds
+```
+
+### Performance Validation
+- **Throughput Targets**: Validate requests/second under load
+- **Latency Monitoring**: P95/P99 response time tracking
+- **Error Rate Validation**: Ensure error rates stay below thresholds
+- **Resource Utilization**: Monitor CPU, memory, and GPU usage patterns
+
+## CLI Tool
+
+### evaluation_cli.py Features
+**Capabilities**:
+- Batch evaluation of CSV datasets
+- Performance comparison between single and batch processing
+- Progress tracking with detailed statistics
+- Flexible input formats (URLs, file paths, base64)
+- Comprehensive result reporting
+
+**Usage Examples**:
+```bash
+# Basic evaluation
+python app/evaluation_cli.py dataset.csv
+
+# Batch processing with custom batch size
+python app/evaluation_cli.py dataset.csv --batch --batch-size 32
+
+# Performance comparison
+python app/evaluation_cli.py dataset.csv --compare
+
+# Custom service URL
+python app/evaluation_cli.py dataset.csv --service-url http://localhost:8000
+```
+
+**CSV Format**:
+```csv
+url,caption
+https://example.com/image1.jpg,A cat sitting on a table
+https://example.com/image2.jpg,A dog running in a park
+/path/to/local/image.jpg,A beautiful sunset over mountains
+```
+
+## Development Workflow
+
+### Setup and Development
+```bash
+# Initial setup
+git clone <repository-url>
+cd vision-language-similarity
+make dev-setup
+
+# Start development service
+make run-local
+
+# Code formatting
+make run-style-inplace-local
+
+# Run tests
+make run-unit-test-suite-local
+```
+
+### Docker Development
+```bash
+# Build base images
+make build-base
+
+# Build service images
+make build-app
+
+# Start observability stack
+make run-local-otel
+
+# Clean up
+make clean-otel
+```
+
+### Code Quality Tools
+- **ruff**: Fast Python linter and formatter
+- **pytest**: Testing framework with async support
+- **coverage**: Code coverage reporting
+- **Docker**: Containerized development and deployment
+
+## Configuration Management
+
+### Model Configuration (`config/models.json`)
+```json
+{
+  "models": {
+    "fast": {
+      "model_name": "ViT-B-32",
+      "pretrained": "laion2b_s34b_b79k",
+      "description": "Faster inference, good performance",
+      "memory_gb": 2.0,
+      "avg_inference_time_ms": 50,
+      "accuracy_score": 0.85,
+      "enabled": true
+    },
+    "accurate": {
+      "model_name": "ViT-L-14",
+      "pretrained": "laion2b_s32b_b82k",
+      "description": "Higher accuracy, slower inference",
+      "memory_gb": 6.0,
+      "avg_inference_time_ms": 200,
+      "accuracy_score": 0.92,
+      "enabled": true
+    }
+  }
+}
+```
+
+### Environment Variables
+- `LOG_LEVEL`: Logging level (DEBUG, INFO, WARNING, ERROR)
+- `MODEL_CONFIG_<NAME>`: JSON string for custom model configurations
+- `USE_RAY_SERVE`: Enable Ray Serve deployment mode
+- `PROMETHEUS_MULTIPROC_DIR`: Directory for Prometheus multiprocess metrics
+
+## Recent Optimizations
+
+### Batch Processing Performance Fix
+**Problem**: After refactoring, batch processing was only 1.3x faster than single evaluation (previously 5x)
+
+**Root Cause**: Model grouping strategy created artificial serialization:
+- Requests were grouped by model configuration
+- Groups processed sequentially instead of concurrently
+- Lost the core benefit of async processing
+
+**Solution**: Reverted to `asyncio.gather()` approach:
+```python
+# Concurrent processing for all requests
+tasks = [self.evaluate_single(eval_req) for eval_req in request.evaluations]
+results = await asyncio.gather(*tasks, return_exceptions=True)
+```
+
+**Results**: Restored 5.29x speedup for batch processing
+
+### Key Insights
+1. **Model Caching Solved the Efficiency Problem**: Multiple concurrent requests can share the same cached model
+2. **Concurrency > Batching for I/O-Bound Workloads**: Image loading benefits more from concurrency than GPU batching
+3. **Premature Optimization**: The model grouping was a false optimization that solved a non-existent problem
+
+## Hyperscale Deployment with Ray
+
+### Ray Serve Capabilities for Hundreds of Millions of Daily Requests
+
+**Distributed Computing Foundation**:
+- Elastic scaling from single machine to thousands of nodes
+- Actor-based model serving eliminates cold start problems
+- Intelligent resource management for heterogeneous hardware
+
+**Advanced Autoscaling**:
+- Request-aware scaling beyond simple CPU metrics
+- Predictive scaling based on traffic patterns
+- Multi-dimensional autoscaling for different pipeline components
+
+**Traffic Management**:
+- Adaptive request routing considering replica health and performance
+- Built-in backpressure handling with intelligent queuing
+- Global request coordination across distributed clusters
+
+**Fault Tolerance**:
+- Distributed fault recovery with automatic replica redistribution
+- Hierarchical failure handling with isolation at multiple levels
+- Automatic state recovery with custom strategies
+
+**Advanced Deployment Patterns**:
+- Multi-model serving with sophisticated traffic splitting
+- Dynamic configuration updates without service restarts
+- Gradual rollouts with automatic performance monitoring
+
+**Performance Optimization**:
+- Shared memory architecture for efficient model weight sharing
+- Distributed caching for frequently accessed data
+- Resource pooling for optimal GPU utilization
+
+This comprehensive documentation covers all aspects of the vision-language similarity service, from basic usage to hyperscale deployment strategies.

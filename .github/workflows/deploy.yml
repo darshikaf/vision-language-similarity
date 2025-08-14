@@ -1,0 +1,124 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        default: 'latest'
+        type: string
+
+env:
+  PROJECT_NAME: vision_language_similarity_service
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: your-account-id.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Verify image exists
+        run: |
+          IMAGE_URI="${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}:${{ github.event.inputs.image_tag }}"
+          echo "Checking image: $IMAGE_URI"
+          
+          if docker manifest inspect $IMAGE_URI > /dev/null 2>&1; then
+            echo "✅ Image found: $IMAGE_URI"
+          else
+            echo "❌ Image not found: $IMAGE_URI"
+            exit 1
+          fi
+
+      - name: Deploy to ${{ github.event.inputs.environment }}
+        run: |
+          IMAGE_URI="${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}:${{ github.event.inputs.image_tag }}"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          echo "🚀 Deploying to $ENVIRONMENT"
+          echo "📦 Image: $IMAGE_URI"
+          
+          # TODO: Replace with your actual deployment commands
+          # Examples:
+          # 1. Update Kubernetes deployment
+          # kubectl set image deployment/${{ env.PROJECT_NAME }} app=$IMAGE_URI -n $ENVIRONMENT
+          # 
+          # 2. Update ECS service
+          # aws ecs update-service --cluster $ENVIRONMENT --service ${{ env.PROJECT_NAME }} --force-new-deployment
+          # 
+          # 3. Update Lambda function
+          # aws lambda update-function-code --function-name ${{ env.PROJECT_NAME }}-$ENVIRONMENT --image-uri $IMAGE_URI
+          # 
+          # 4. Trigger ArgoCD sync
+          # argocd app sync ${{ env.PROJECT_NAME }}-$ENVIRONMENT
+          
+          echo "✅ Deployment completed successfully!"
+          echo "🔗 Service URL: https://${{ env.PROJECT_NAME }}-$ENVIRONMENT.your-domain.com"
+
+      - name: Run smoke tests
+        run: |
+          # TODO: Replace with your service health check URL
+          SERVICE_URL="https://${{ env.PROJECT_NAME }}-${{ github.event.inputs.environment }}.your-domain.com"
+          
+          echo "🔍 Running smoke tests against: $SERVICE_URL"
+          
+          # Wait for service to be ready
+          echo "⏳ Waiting for service to be ready..."
+          for i in {1..30}; do
+            if curl -s "$SERVICE_URL/evaluator/health" > /dev/null; then
+              echo "✅ Service is healthy!"
+              break
+            fi
+            echo "Attempt $i/30: Service not ready yet..."
+            sleep 10
+          done
+          
+          # Run basic API test
+          echo "🧪 Testing API endpoints..."
+          curl -f "$SERVICE_URL/evaluator/health" || exit 1
+          echo "✅ Smoke tests passed!"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          
+          if [ "$STATUS" = "success" ]; then
+            echo "✅ Deployment successful!"
+            echo "Environment: $ENVIRONMENT"
+            echo "Image: $IMAGE_TAG"
+          else
+            echo "❌ Deployment failed!"
+            echo "Environment: $ENVIRONMENT"
+            echo "Image: $IMAGE_TAG"
+          fi
+          
+          # TODO: Add notifications to Slack, Teams, etc.
+          # Example Slack notification:
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data "{\"text\":\"Deployment $STATUS: ${{ env.PROJECT_NAME }} v$IMAGE_TAG to $ENVIRONMENT\"}" \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}

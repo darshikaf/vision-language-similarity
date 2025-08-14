@@ -1,0 +1,40 @@
+{
+  "models": {
+    "fast": {
+      "model_name": "ViT-B-32",
+      "pretrained": "laion2b_s34b_b79k",
+      "description": "Faster inference, good performance",
+      "memory_gb": 2.0,
+      "avg_inference_time_ms": 50,
+      "accuracy_score": 0.85,
+      "enabled": true
+    },
+    "accurate": {
+      "model_name": "ViT-L-14",
+      "pretrained": "laion2b_s32b_b82k",
+      "description": "Higher accuracy, slower inference",
+      "memory_gb": 6.0,
+      "avg_inference_time_ms": 200,
+      "accuracy_score": 0.92,
+      "enabled": true
+    },
+    "experimental": {
+      "model_name": "ViT-B-16",
+      "pretrained": "laion2b_s34b_b88k",
+      "description": "Experimental balanced model",
+      "memory_gb": 3.0,
+      "avg_inference_time_ms": 100,
+      "accuracy_score": 0.88,
+      "enabled": false
+    },
+    "custom": {
+      "model_name": "ViT-L-14-336",
+      "pretrained": "openai",
+      "description": "Custom high-resolution model",
+      "memory_gb": 8.0,
+      "avg_inference_time_ms": 400,
+      "accuracy_score": 0.94,
+      "enabled": false
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# Load testing dependencies
+locust>=2.20.0
+requests>=2.31.0
+
+# CI/CD integration
+pytest>=7.4.0
+pytest-html>=4.1.0
+
+# Data processing
+Pillow>=10.0.0
