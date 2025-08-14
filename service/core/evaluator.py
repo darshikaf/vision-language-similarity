@@ -4,7 +4,6 @@ from pathlib import Path
 import time
 
 from PIL import Image
-from tqdm import tqdm
 
 from service.core.exceptions import ServiceError, ValidationError
 from service.core.image_loader import ImageLoader
