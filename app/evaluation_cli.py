@@ -13,10 +13,18 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
+import requests
 from typing import Optional
 
-import pandas as pd
-import requests
+try:
+    import pandas as pd
+except ModuleNotFoundError as e:
+    if e.name == "pandas":
+        raise ImportError(
+            "'pandas' library is required to run this script."
+        ) from e
+    else:
+        raise
 
 
 def extract_user_id_from_url(url: str) -> Optional[str]:

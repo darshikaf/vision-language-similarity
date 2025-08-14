@@ -89,7 +89,6 @@ class MinimalOpenCLIPEvaluator:
         start_time = time.time()
 
         try:
-            # Load image asynchronously if needed
             if isinstance(image_input, Image.Image):
                 image = image_input.convert("RGB")
             elif image_loader:
@@ -164,7 +163,6 @@ class MinimalOpenCLIPEvaluator:
         image_inputs: list[str | Image.Image | Path],
         text_prompts: list[str],
         batch_size: int = 32,
-        show_progress: bool = True,
         max_concurrent_loads: int | None = None,
     ) -> list[EvaluationResult]:
         """
@@ -174,7 +172,6 @@ class MinimalOpenCLIPEvaluator:
             image_inputs: List of image sources
             text_prompts: List of text descriptions
             batch_size: Batch size for PyTorch processing
-            show_progress: Show progress bar
             max_concurrent_loads: Max concurrent image loads
 
         Returns:
@@ -184,7 +181,6 @@ class MinimalOpenCLIPEvaluator:
             raise ValidationError(f"Mismatch: {len(image_inputs)} images vs {len(text_prompts)} prompts")
 
         results = []
-        total_batches = (len(image_inputs) + batch_size - 1) // batch_size
 
         # Use semaphore to limit concurrent image loading
         concurrent_loads = max_concurrent_loads or self.max_concurrent_loads
@@ -192,15 +188,12 @@ class MinimalOpenCLIPEvaluator:
 
         async with ImageLoader() as image_loader:
             iterator = range(0, len(image_inputs), batch_size)
-            if show_progress:
-                iterator = tqdm(iterator, total=total_batches, desc="Processing async batches")
 
             for batch_start in iterator:
                 batch_end = min(batch_start + batch_size, len(image_inputs))
                 batch_images_raw = image_inputs[batch_start:batch_end]
                 batch_prompts = text_prompts[batch_start:batch_end]
 
-                # Load all images in batch concurrently with semaphore
                 async def load_with_semaphore(img_input, idx):
                     async with load_semaphore:
                         try:
@@ -214,7 +207,7 @@ class MinimalOpenCLIPEvaluator:
                             error_type = getattr(e, "error_type", None) if isinstance(e, ServiceError) else None
                             return None, idx, str(e), error_type
 
-                # Load all images in batch concurrently
+                # Load all images in batch concurrently with semaphore
                 load_tasks = [load_with_semaphore(img_input, idx) for idx, img_input in enumerate(batch_images_raw)]
 
                 loaded_results = await asyncio.gather(*load_tasks, return_exceptions=True)

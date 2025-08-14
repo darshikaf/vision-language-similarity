@@ -104,18 +104,18 @@ services:
     networks:
       - observability
 
-  # Load Generator for testing
-  load-generator:
-    image: curlimages/curl:8.5.0
-    volumes:
-      - ./load_gen.sh:/load_gen.sh:ro
-      - ./urls.txt:/urls.txt:ro
-    command: >
-      sh -c "chmod +x /load_gen.sh && /load_gen.sh"
-    depends_on:
-      - vision-similarity-service
-    networks:
-      - observability
+  # # Load Generator for testing
+  # load-generator:
+  #   image: curlimages/curl:8.5.0
+  #   volumes:
+  #     - ./load_gen.sh:/load_gen.sh:ro
+  #     - ./urls.txt:/urls.txt:ro
+  #   command: >
+  #     sh -c "chmod +x /load_gen.sh && /load_gen.sh"
+  #   depends_on:
+  #     - vision-similarity-service
+  #   networks:
+  #     - observability
 
 volumes:
   prometheus_data:

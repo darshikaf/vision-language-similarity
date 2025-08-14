@@ -13,7 +13,10 @@ from service.constants import APP_NAME
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
-    """Prometheus middleware for FastAPI with ML-specific metrics"""
+    """
+    Prometheus middleware for FastAPI with ML-specific metrics
+    TODO: clean up metrics and fix panels
+    """
 
     _instance: "PrometheusMiddleware | None" = None
     _metrics_initialized = False

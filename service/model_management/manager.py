@@ -175,16 +175,6 @@ class ModelManager:
             logger.warning(f"Could not get runtime info for {config_name}: {e}")
             return {}
 
-    async def preload_models(self, config_names: list[str]) -> None:
-        """Preload models for faster first access"""
-        tasks = [self.get_model(config_name) for config_name in config_names]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Log any failures
-        for config_name, result in zip(config_names, results, strict=False):
-            if isinstance(result, Exception):
-                logger.error(f"Failed to preload model {config_name}: {result}")
-
     @asynccontextmanager
     async def model_context(self, config_name: str):
         """Context manager for temporary model usage"""
@@ -192,7 +182,6 @@ class ModelManager:
         try:
             yield model
         finally:
-            # Could implement reference counting here if needed
             pass
 
     def get_status(self) -> dict[str, Any]:
@@ -204,5 +193,5 @@ class ModelManager:
         }
 
 
-# Global model manager instance
+# Global model manager for resource sharing and performance
 model_manager = ModelManager()

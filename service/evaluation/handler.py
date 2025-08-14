@@ -23,12 +23,7 @@ class EvaluationHandler:
 
     DEFAULT_MODEL_CONFIG = "fast"
 
-    def __init__(self):
-        # Model management handled by ModelManager
-        pass
-
     def _get_model_config(self, requested_config: str | None) -> str:
-        """Get model config name, applying default if needed"""
         return requested_config or self.DEFAULT_MODEL_CONFIG
 
     def _evaluation_result_to_response(self, result: EvaluationResult, model_config: str) -> EvaluationResponse:
@@ -72,14 +67,13 @@ class EvaluationHandler:
             logger.warning(f"Failed to record batch metrics: {e}")
 
     async def evaluate_single(self, request: EvaluationRequest) -> EvaluationResponse:
-        """Handle single evaluation request with clean separation of concerns"""
         model_config = self._get_model_config(request.model_config_name)
 
-        # Perform evaluation using model manager
+        # Perform evaluation -- model context is managed per request, but the underlying manager is shared
         async with model_manager.model_context(model_config) as evaluator:
             result = await evaluator.evaluate_single(request.image_input, request.text_prompt)
 
-        # Record metrics (safe operation, won't fail evaluation)
+        # Record metrics
         self._record_evaluation_metrics(result, model_config)
 
         return self._evaluation_result_to_response(result, model_config)
@@ -123,7 +117,7 @@ class EvaluationHandler:
     async def _evaluate_batch_for_model(
         self, requests: list[EvaluationRequest], model_config: str
     ) -> list[EvaluationResponse]:
-        """Evaluate a batch of requests using the same model configuration"""
+        """Evaluate a batch of requests with the same model configuration"""
         responses = []
 
         # Use single model context for all requests with same config

@@ -51,13 +51,11 @@ def common_exception_handler(func):
     response_model=EvaluationResponse,
     response_model_exclude_none=True,
     summary="Evaluate single image-text pair",
-    description="Evaluate the similarity between a single image and text description using CLIP models",
 )
 @common_exception_handler
 async def evaluate_single(
     request: EvaluationRequest, handler: EvaluationHandler = Depends(get_handler)
 ) -> EvaluationResponse:
-    """Evaluate single image-text pair"""
     return await handler.evaluate_single(request)
 
 
@@ -66,13 +64,11 @@ async def evaluate_single(
     response_model=BatchEvaluationResponse,
     response_model_exclude_none=True,
     summary="Evaluate multiple image-text pairs",
-    description="Efficiently evaluate multiple image-text pairs in batch with progress tracking",
 )
 @common_exception_handler
 async def evaluate_batch(
     request: BatchEvaluationRequest, handler: EvaluationHandler = Depends(get_handler)
 ) -> BatchEvaluationResponse:
-    """Evaluate multiple image-text pairs in batch"""
     if not request.evaluations:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Batch request must contain at least one evaluation")
 
@@ -83,9 +79,7 @@ async def evaluate_batch(
     "/health",
     response_model=HealthResponse,
     summary="Health check",
-    description="Check service health and model availability",
 )
 @common_exception_handler
 async def health_check(handler: EvaluationHandler = Depends(get_handler)) -> HealthResponse:
-    """Health check endpoint"""
     return await handler.health_check()

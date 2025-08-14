@@ -47,7 +47,6 @@ def common_exception_handler(func):
     description="List available model configurations and their details",
 )
 async def get_available_models() -> dict[str, Any]:
-    """Get available model configurations from dynamic registry"""
     available_models = model_registry.list_available_models()
     return {"available_configs": available_models, "default_config": "fast", "total_available": len(available_models)}
 
@@ -58,7 +57,6 @@ async def get_available_models() -> dict[str, Any]:
     description="Get detailed specifications for all available models including performance metrics",
 )
 async def get_model_specifications() -> dict[str, Any]:
-    """Get detailed specifications for all available models"""
     return model_registry.list_available_models()
 
 
@@ -69,7 +67,6 @@ async def get_model_specifications() -> dict[str, Any]:
 )
 @common_exception_handler
 async def get_model_info(config_name: str) -> dict[str, Any]:
-    """Get runtime information for a specific model"""
     return await model_manager.get_model_info(config_name)
 
 
@@ -79,7 +76,6 @@ async def get_model_info(config_name: str) -> dict[str, Any]:
     description="Get all model configurations including disabled ones (admin endpoint)",
 )
 async def get_all_model_configs() -> dict[str, Any]:
-    """Get all model configurations including disabled ones"""
     return {"all_models": model_registry.list_all_models(), "available_models": model_registry.list_available_models()}
 
 
