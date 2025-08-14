@@ -140,9 +140,7 @@ tests/integration/.DS_Store
 # dev
 .devcontainer
 uv.lock
-
-# tempo data
-tempo-data/
+model-cache
 
 # test data
 test-reports/
