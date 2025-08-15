@@ -1,13 +1,13 @@
-from .ml.engines.evaluator import MinimalOpenCLIPEvaluator
-from .ml.utils.image_loader import ImageLoader
-from .device_manager import DeviceManager
-from .types import EvaluationResult, ModelConfig
 from .config import model_registry
+from .device_manager import DeviceManager
+from .ml.engines.openclip_evaluator import MinimalOpenCLIPEvaluator
+from .ml.utils.image_loader import ImageLoader
 from .observability import get_metrics_middleware
+from .types import EvaluationResult, ModelConfig
 
 __all__ = [
     "EvaluationResult",
-    "ModelConfig", 
+    "ModelConfig",
     "MinimalOpenCLIPEvaluator",
     "DeviceManager",
     "ImageLoader",

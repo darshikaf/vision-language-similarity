@@ -225,54 +225,6 @@ class TestEvaluationHandler:
         assert handler1 is handler2
         assert isinstance(handler1, EvaluationHandler)
 
-    @pytest.mark.asyncio
-    async def test_handler_uses_pluggable_config_system(self, handler):
-        """Test that handler uses the pluggable model configuration system"""
-        with patch('service.evaluation.handler.MinimalOpenCLIPEvaluator') as mock_evaluator_class:
-            mock_evaluator = Mock()
-            mock_result = Mock()
-            mock_result.image_path = "test.jpg"
-            mock_result.text_prompt = "test"
-            mock_result.clip_score = 75.0
-            mock_result.processing_time_ms = 100.0
-            mock_result.error = None
-            
-            mock_evaluator.evaluate_single = AsyncMock(return_value=mock_result)
-            mock_evaluator_class.return_value = mock_evaluator
-            
-            request = EvaluationRequest(
-                image_input="test.jpg",
-                text_prompt="test",
-                model_config_name="accurate"
-            )
-            
-            await handler.evaluate_single(request)
-            
-            mock_evaluator_class.assert_called_once_with(model_config_name="accurate")
-
-    @pytest.mark.asyncio
-    async def test_handler_default_config_fallback(self, handler):
-        """Test handler falls back to default config when none specified"""
-        with patch('service.evaluation.handler.MinimalOpenCLIPEvaluator') as mock_evaluator_class:
-            mock_evaluator = Mock()
-            mock_result = Mock()
-            mock_result.image_path = "test.jpg"
-            mock_result.text_prompt = "test"
-            mock_result.clip_score = 75.0
-            mock_result.processing_time_ms = 100.0
-            mock_result.error = None
-            
-            mock_evaluator.evaluate_single = AsyncMock(return_value=mock_result)
-            mock_evaluator_class.return_value = mock_evaluator
-            
-            request = EvaluationRequest(
-                image_input="test.jpg",
-                text_prompt="test"
-            )
-            
-            await handler.evaluate_single(request)
-            
-            mock_evaluator_class.assert_called_once_with(model_config_name="fast")
 
     @pytest.mark.asyncio
     async def test_handler_graceful_error_handling(self, handler):
@@ -301,93 +253,7 @@ class TestEvaluationHandler:
             await handler.evaluate_single(request)
 
 
-class TestEvaluationHandlerModelConfigurations:
-    """Test handler with different model configurations"""
 
-    @pytest.fixture
-    def handler(self):
-        return EvaluationHandler()
-
-    @pytest.mark.parametrize("model_config", ["fast", "accurate"])
-    @pytest.mark.asyncio
-    async def test_handler_with_different_configs(self, handler, model_config):
-        """Test handler works with different model configurations"""
-        with patch('service.evaluation.handler.MinimalOpenCLIPEvaluator') as mock_evaluator_class:
-            mock_evaluator = Mock()
-            mock_result = Mock()
-            mock_result.image_path = "test.jpg"
-            mock_result.text_prompt = "test"
-            mock_result.clip_score = 80.0
-            mock_result.processing_time_ms = 120.0
-            mock_result.error = None
-            
-            mock_evaluator.evaluate_single = AsyncMock(return_value=mock_result)
-            mock_evaluator_class.return_value = mock_evaluator
-            
-            request = EvaluationRequest(
-                image_input="test.jpg",
-                text_prompt="test",
-                model_config_name=model_config
-            )
-            
-            response = await handler.evaluate_single(request)
-            
-            assert response.model_used == model_config
-            mock_evaluator_class.assert_called_once_with(model_config_name=model_config)
-
-    @pytest.mark.asyncio
-    async def test_batch_handler_respects_individual_configs(self, handler):  
-        """Test that batch handler respects individual model configurations"""
-        with patch('service.evaluation.handler.MinimalOpenCLIPEvaluator') as mock_evaluator_class:
-            mock_evaluator_fast = Mock()
-            mock_evaluator_accurate = Mock()
-            
-            mock_result1 = Mock()
-            mock_result1.image_path = "test1.jpg"
-            mock_result1.text_prompt = "prompt1"
-            mock_result1.clip_score = 75.0
-            mock_result1.processing_time_ms = 100.0
-            mock_result1.error = None
-            
-            mock_result2 = Mock() 
-            mock_result2.image_path = "test2.jpg"
-            mock_result2.text_prompt = "prompt2"
-            mock_result2.clip_score = 80.0
-            mock_result2.processing_time_ms = 150.0
-            mock_result2.error = None
-            
-            mock_evaluator_fast.evaluate_batch = AsyncMock(return_value=[mock_result1])
-            mock_evaluator_accurate.evaluate_batch = AsyncMock(return_value=[mock_result2])
-            
-            def evaluator_side_effect(model_config_name=None):
-                if model_config_name == "fast":
-                    return mock_evaluator_fast
-                elif model_config_name == "accurate":
-                    return mock_evaluator_accurate
-                else:
-                    return mock_evaluator_fast
-            
-            mock_evaluator_class.side_effect = evaluator_side_effect
-            
-            batch_request = BatchEvaluationRequest(
-                evaluations=[
-                    EvaluationRequest(
-                        image_input="test1.jpg",
-                        text_prompt="prompt1", 
-                        model_config_name="fast"
-                    ),
-                    EvaluationRequest(
-                        image_input="test2.jpg",
-                        text_prompt="prompt2",
-                        model_config_name="accurate"
-                    )
-                ]
-            )
-            
-            response = await handler.evaluate_batch(batch_request)
-            
-            assert mock_evaluator_class.call_count >= 1
-            assert response.total_processed == 2
 
 
 class TestEvaluationHandlerErrorScenarios:

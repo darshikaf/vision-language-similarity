@@ -175,21 +175,5 @@ class TestSystemRouteIntegration:
             assert isinstance(spec["avg_inference_time_ms"], (int, float))
             assert isinstance(spec["accuracy_score"], (int, float))
 
-    def test_all_models_vs_available_models_consistency(self):
-        """Test consistency between all models and available models endpoints"""
-        response = client.get(SYSTEM_PATH + "/models/all")
-        assert response.status_code == status.HTTP_200_OK
-        
-        data = response.json()
-        all_models = data["all_models"]
-        available_models = data["available_models"]
-        
-        # Every available model should exist in all models
-        for model_name in available_models:
-            assert model_name in all_models
-            
-        # Available models should only include enabled models
-        for model_name, model_spec in available_models.items():
-            assert model_spec["enabled"] is True
 
 

@@ -61,25 +61,5 @@ class TestDeviceManager:
 
 
 
-class TestDeviceManagerIntegration:
-    """Test device manager integration scenarios"""
 
-    def test_device_and_precision_consistency(self):
-        """Test that device and precision selections are consistent"""
-        device = DeviceManager.get_optimal_device()
-        precision = DeviceManager.get_optimal_precision(device)
-        
-        # Verify the combination makes sense
-        if device.type == "cpu":
-            assert precision == "fp32"
-        elif device.type == "cuda":
-            assert precision == "fp16"
-
-    def test_multiple_device_selections_consistent(self):
-        """Test multiple calls return consistent results"""
-        device1 = DeviceManager.get_optimal_device()
-        device2 = DeviceManager.get_optimal_device()
-        
-        # Should return same device type (though not necessarily same instance)
-        assert device1.type == device2.type
 

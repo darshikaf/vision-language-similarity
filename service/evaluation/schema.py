@@ -8,7 +8,7 @@ class EvaluationRequest(BaseModel):
     text_prompt: str = Field(..., description="Text description to compare with image")
     model_config_name: str | None = Field("fast", description="Model configuration: 'fast' or 'accurate'")
 
-    @field_validator('image_input', 'text_prompt')
+    @field_validator("image_input", "text_prompt")
     @classmethod
     def validate_not_empty(cls, v: str) -> str:
         """Validate that required string fields are not empty"""

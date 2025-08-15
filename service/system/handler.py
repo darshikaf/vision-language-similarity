@@ -9,15 +9,15 @@ logger = logging.getLogger(__name__)
 def get_model_info(config_name: str) -> dict[str, Any]:
     """
     Get detailed model information for a specific configuration.
-    
+
     Args:
         config_name: Model configuration name
-        
+
     Returns:
         Dictionary containing model specification and status information
     """
     spec = model_registry.get_model_spec(config_name)
-    
+
     return {
         "config_name": config_name,
         "spec": {
@@ -38,12 +38,12 @@ def get_model_info(config_name: str) -> dict[str, Any]:
 def get_system_status() -> dict[str, Any]:
     """
     Get overall system status for model management.
-    
+
     Returns:
         Dictionary containing system status information
     """
     available_configs = list(model_registry.list_available_models().keys())
-    
+
     return {
         "cached_models": [],  # No caching in simplified approach
         "loaded_models": [],  # Models created on-demand

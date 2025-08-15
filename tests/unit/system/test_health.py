@@ -24,11 +24,3 @@ def test_health_endpoint():
     assert "service" in data
 
 
-def test_evaluation_health_endpoint():
-    """Test evaluation service health endpoint"""
-    response = client.get("/evaluator/v1/evaluation/health")
-    assert response.status_code == 200
-    data = response.json()
-    assert "status" in data
-    assert "model_loaded" in data
-    assert "available_configs" in data

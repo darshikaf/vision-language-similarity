@@ -50,7 +50,7 @@ services:
               "memory_gb": 3.0,
               "avg_inference_time_ms": 100,
               "accuracy_score": 0.88,
-              "enabled": true
+              "enabled": false
             },
             "custom": {
               "model_name": "ViT-L-14-336",

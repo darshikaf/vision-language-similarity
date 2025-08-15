@@ -3,8 +3,8 @@ from collections import defaultdict
 import logging
 import time
 
-from service.core.config import model_registry
 from service.core import EvaluationResult, MinimalOpenCLIPEvaluator
+from service.core.config import model_registry
 from service.core.exceptions import ServiceError
 from service.core.observability import get_metrics_middleware
 
@@ -98,12 +98,12 @@ class EvaluationHandler:
 
         # Process each group and collect results with original indices
         all_results = {}
-        for model_config, indexed_requests in config_groups.items():
+        for _, indexed_requests in config_groups.items():
             tasks = [self.evaluate_single(eval_req) for _, eval_req in indexed_requests]
             group_results = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Map results back to original indices
-            for (original_index, _), result in zip(indexed_requests, group_results):
+            for (original_index, _), result in zip(indexed_requests, group_results, strict=False):
                 all_results[original_index] = result
 
         # Reconstruct results in original order
@@ -115,7 +115,7 @@ class EvaluationHandler:
             if isinstance(result, Exception):
                 eval_req = request.evaluations[i]
                 model_config = eval_req.model_config_name or "fast"
-                
+
                 failed_response = EvaluationResponse(
                     image_input=eval_req.image_input,
                     text_prompt=eval_req.text_prompt,

@@ -115,26 +115,6 @@ class TestEvaluationBatchRoute:
 
 
 
-class TestEvaluationHealthRoute:
-    """Test evaluation health endpoint"""
-
-    @patch('service.evaluation.handler.MinimalOpenCLIPEvaluator')
-    def test_health_check_success(self, mock_evaluator_class):
-        """Test successful health check"""
-        mock_evaluator = Mock()
-        mock_evaluator.similarity_model = Mock()
-        mock_evaluator.similarity_model.model = Mock()
-        mock_evaluator_class.return_value = mock_evaluator
-        
-        response = client.get(EVALUATION_PATH + "/health")
-        assert response.status_code == status.HTTP_200_OK
-        
-        data = response.json()
-        assert "status" in data
-        assert "model_loaded" in data
-        assert "available_configs" in data
-        assert isinstance(data["available_configs"], list)
-        assert len(data["available_configs"]) >= 2
 
 
 

@@ -7,7 +7,7 @@ from .result_builder import ResultBuilder
 
 __all__ = [
     "ImageLoader",
-    "ImageProcessor", 
+    "ImageProcessor",
     "MetricsRecorder",
     "ResultBuilder",
 ]
