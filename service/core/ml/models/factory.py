@@ -1,8 +1,8 @@
 from typing import Any
 
-from service.config.model_configs import model_registry
-from service.core.similarity_models.base import SimilarityModel
-from service.core.similarity_models.openclip_model import OpenCLIPSimilarityModel
+from service.core.config import model_registry
+from service.core.ml.models.base import SimilarityModel
+from service.core.ml.models.openclip_model import OpenCLIPSimilarityModel
 
 
 class SimilarityModelFactory:
@@ -59,12 +59,3 @@ class SimilarityModelFactory:
         model_class = cls._MODEL_REGISTRY[model_type]
         return model_class(**config)
 
-    @classmethod
-    def create_fast_model(cls, **kwargs) -> SimilarityModel:
-        """Create a model optimized for speed"""
-        return cls.create_model("fast", **kwargs)
-
-    @classmethod
-    def create_accurate_model(cls, **kwargs) -> SimilarityModel:
-        """Create a model optimized for accuracy"""
-        return cls.create_model("accurate", **kwargs)

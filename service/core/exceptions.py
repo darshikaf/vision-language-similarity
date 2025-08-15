@@ -7,6 +7,11 @@ class ServiceError(Exception):
     http_status: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     error_type: str = "service_error"
 
+    def __init__(self, message: str, http_status: int = None):
+        super().__init__(message)
+        if http_status is not None:
+            self.http_status = http_status
+
 
 class ValidationError(ServiceError):
     """Input validation and configuration errors"""

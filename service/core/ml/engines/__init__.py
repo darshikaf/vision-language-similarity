@@ -1,0 +1,11 @@
+"""ML Engines module - Core evaluator and inference logic."""
+
+from .base_evaluator import AbstractEvaluator
+from .model_manager import ModelManager
+from .openclip_evaluator import MinimalOpenCLIPEvaluator
+
+__all__ = [
+    "AbstractEvaluator",
+    "MinimalOpenCLIPEvaluator", 
+    "ModelManager",
+]

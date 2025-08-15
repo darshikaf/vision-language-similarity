@@ -4,15 +4,15 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
-from service.config.model_configs import model_registry
+from service.core.config import model_registry
 from service.core.exceptions import ServiceError
-from service.model_management import model_manager
+from service.system.handler import get_model_info, get_system_status
 
 logger = logging.getLogger(__name__)
 
-ADMIN_PREFIX = "/v1/admin"
+SYSTEM_PREFIX = "/v1/system"
 
-router = APIRouter(prefix=ADMIN_PREFIX, tags=["admin"])
+router = APIRouter(prefix=SYSTEM_PREFIX, tags=["system"])
 
 
 def common_exception_handler(func):
@@ -66,8 +66,8 @@ async def get_model_specifications() -> dict[str, Any]:
     description="Get detailed runtime information including health status for a specific model",
 )
 @common_exception_handler
-async def get_model_info(config_name: str) -> dict[str, Any]:
-    return await model_manager.get_model_info(config_name)
+async def get_model_runtime_info(config_name: str) -> dict[str, Any]:
+    return get_model_info(config_name)
 
 
 @router.get(
@@ -82,9 +82,9 @@ async def get_all_model_configs() -> dict[str, Any]:
 # Administrative Endpoints
 @router.get(
     "/status",
-    summary="Get model manager status",
+    summary="Get system status",
     description="Get detailed status of the model management system (admin endpoint)",
 )
 async def get_model_manager_status() -> dict[str, Any]:
-    """Get model manager status"""
-    return model_manager.get_status()
+    """Get system status"""
+    return get_system_status()
