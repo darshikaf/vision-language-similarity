@@ -70,6 +70,74 @@ class MinimalOpenCLIPEvaluator:
             error=error_message,
             error_type=error_type,
         )
+    
+    async def _load_image(self, image_input: str | Image.Image | Path, image_loader: ImageLoader | None) -> Image.Image:
+        """Load image from various input sources"""
+        if isinstance(image_input, Image.Image):
+            image = image_input.convert("RGB")
+        elif image_loader:
+            image = await image_loader.load_image(image_input)
+        else:
+            async with ImageLoader() as loader:
+                image = await loader.load_image(image_input)
+        return image
+    
+
+    def _determine_source_type(self, image_input: str | Image.Image | Path) -> str:
+        """Determine source type based on input"""
+        if isinstance(image_input, str):
+            if image_input.startswith(("http://", "https://")):
+                source_type = "url"
+            elif image_input.startswith("data:image/"):
+                source_type = "base64"
+            else:
+                source_type = "file"
+        else:
+            source_type = "pil_image"
+        return source_type
+
+
+    async def _record_success_metrics(
+            self, clip_score: float, inference_time: float, total_time: float, source_type: str
+        ) -> None:
+        """Record metrics for successful evaluation"""
+        try:
+            metrics = get_metrics_middleware()
+            if metrics:
+                metrics.record_inference_time(
+                    inference_time / 1000,
+                    self.model_config_name,
+                    self.device.type,
+                    self.similarity_model.model_name,
+                )
+
+                metrics.record_clip_score(clip_score, self.model_config_name, self.similarity_model.model_name)
+
+                image_processing_time = (total_time - inference_time) / 1000
+                metrics.record_image_processing_time(image_processing_time, source_type)
+
+        except Exception as e:
+            logger.debug(f"Metrics recording failed: {e}")
+            pass
+
+    
+    def _extract_error_type(self, exception: Exception) -> str | None:
+        """Extract error type from exception for metrics"""
+        return getattr(exception, "error_type", None) if isinstance(exception, ServiceError) else None
+    
+    def _record_error_metrics(
+        self, exception: Exception, error_type: str | None = None
+    ) -> None:
+        """Record metrics for evaluation errors"""
+        try:
+            metrics = get_metrics_middleware()
+            if not metrics:
+                return
+            error_name = error_type or type(exception).__name__ 
+            metrics.record_model_error(error_name, self.model_config_name, self.similarity_model.model_name)
+            metrics.record_error_pattern(error_name, "evaluation", self.model_config_name)
+        except Exception as metrics_exception:
+            logger.debug(f"Metrics recording failed: {metrics_exception}")
 
     async def evaluate_single(
         self, image_input: str | Image.Image | Path, text_prompt: str, image_loader: ImageLoader | None = None
@@ -88,48 +156,18 @@ class MinimalOpenCLIPEvaluator:
         start_time = time.time()
 
         try:
-            if isinstance(image_input, Image.Image):
-                image = image_input.convert("RGB")
-            elif image_loader:
-                image = await image_loader.load_image(image_input)
-            else:
-                async with ImageLoader() as loader:
-                    image = await loader.load_image(image_input)
+            # Load and prepare image
+            image = await self._load_image(image_input, image_loader)
 
-            # -- Metrics: Determine source type
-            if isinstance(image_input, str):
-                if image_input.startswith(("http://", "https://")):
-                    source_type = "url"
-                elif image_input.startswith("data:image/"):
-                    source_type = "base64"
-                else:
-                    source_type = "file"
-            else:
-                source_type = "pil_image"
+            # Determine source type for metrics
+            source_type = self._determine_source_type(image_input)
 
             # Use similarity model for inference
             clip_score, inference_time = await self.similarity_model.compute_similarity(image, text_prompt)
             total_time = (time.time() - start_time) * 1000
 
-            # -- Metrics
-            try:
-                metrics = get_metrics_middleware()
-                if metrics:
-                    metrics.record_inference_time(
-                        inference_time / 1000,
-                        self.model_config_name,
-                        self.device.type,
-                        self.similarity_model.model_name,
-                    )
-
-                    metrics.record_clip_score(clip_score, self.model_config_name, self.similarity_model.model_name)
-
-                    image_processing_time = (total_time - inference_time) / 1000
-                    metrics.record_image_processing_time(image_processing_time, source_type)
-
-            except Exception as e:
-                logger.debug(f"Metrics recording failed: {e}")
-                pass
+            # Record success metrics
+            await self._record_success_metrics(clip_score, inference_time, total_time, source_type)
 
             return EvaluationResult(
                 image_path=str(image_input),
@@ -140,142 +178,103 @@ class MinimalOpenCLIPEvaluator:
             )
 
         except Exception as main_exception:
-            logger.error(f"Async evaluation failed for {image_input}: {main_exception}")
-            error_type = (
-                getattr(main_exception, "error_type", None) if isinstance(main_exception, ServiceError) else None
-            )
+            logger.error(f"Evaluation failed for {image_input}: {main_exception}")
+            error_type = self._extract_error_type(main_exception)
 
-            # -- Metrics: model-specific errors
-            try:
-                metrics = get_metrics_middleware()
-                if metrics:
-                    error_name = error_type or type(main_exception).__name__
-                    metrics.record_model_error(error_name, self.model_config_name, self.similarity_model.model_name)
-                    metrics.record_error_pattern(error_name, "evaluation", self.model_config_name)
-            except Exception as metrics_exception:
-                logger.debug(f"Metrics recording failed: {metrics_exception}")
+            # Record error metrics
+            self._record_error_metrics(main_exception, error_type)
 
             return self._create_failed_result(image_input, text_prompt, str(main_exception), error_type)
 
-    async def evaluate_batch(  # noqa: C901
+    async def evaluate_batch(
         self,
         image_inputs: list[str | Image.Image | Path],
         text_prompts: list[str],
-        batch_size: int = 32,
-        max_concurrent_loads: int | None = None,
+        batch_size: int = 8,
     ) -> list[EvaluationResult]:
         """
-        Evaluate multiple image-text pairs using efficient async batch processing
-
+        Simplified batch evaluation using native batch processing
+        
         Args:
             image_inputs: List of image sources
             text_prompts: List of text descriptions
-            batch_size: Batch size for PyTorch processing
-            max_concurrent_loads: Max concurrent image loads
-
+            batch_size: GPU batch size (kept for API compatibility, not used yet)
+            
         Returns:
             List of EvaluationResult objects
-
-        _IMPORTANT_: Currently not used for batch processing due to unresolved model caching issues.
+            
+        TODO: Add chunking if GPU memory issues arise with large batches
         """
         if len(image_inputs) != len(text_prompts):
             raise ValidationError(f"Mismatch: {len(image_inputs)} images vs {len(text_prompts)} prompts")
 
-        results = []
-
-        # Use semaphore to limit concurrent image loading
-        concurrent_loads = max_concurrent_loads or self.max_concurrent_loads
-        load_semaphore = asyncio.Semaphore(concurrent_loads)
-
-        async with ImageLoader() as image_loader:
-            iterator = range(0, len(image_inputs), batch_size)
-
-            for batch_start in iterator:
-                batch_end = min(batch_start + batch_size, len(image_inputs))
-                batch_images_raw = image_inputs[batch_start:batch_end]
-                batch_prompts = text_prompts[batch_start:batch_end]
-
-                async def load_with_semaphore(img_input, idx):
-                    async with load_semaphore:
-                        try:
-                            if isinstance(img_input, Image.Image):
-                                return img_input.convert("RGB"), idx, None
-                            else:
-                                image = await image_loader.load_image(img_input)
-                                return image, idx, None  # (image_result, idx, error_message)
-                        except Exception as e:
-                            logger.error(f"Failed to load image {img_input}: {e}")
-                            error_type = getattr(e, "error_type", None) if isinstance(e, ServiceError) else None
-                            return None, idx, str(e), error_type
-
-                # Load all images in batch concurrently with semaphore
-                load_tasks = [load_with_semaphore(img_input, idx) for idx, img_input in enumerate(batch_images_raw)]
-
-                loaded_results = await asyncio.gather(*load_tasks, return_exceptions=True)
-
-                # Separate successful and failed loads
-                batch_images = []
-                valid_indices = []
-                failed_results = []
-
-                for result in loaded_results:
-                    if len(result) == 4:  # image_result, original_idx, error, error_type
-                        image_result, original_idx, error, error_type = result
-                    else:
-                        image_result, original_idx, error = result
-                        error_type = None
-
-                    if error or image_result is None:
-                        failed_results.append(
-                            self._create_failed_result(
-                                batch_images_raw[original_idx],
-                                batch_prompts[original_idx],
-                                error or "Image loading failed",
-                                error_type,
+        start_time = time.time()
+        
+        try:
+            # Load all images concurrently using existing helper
+            async with ImageLoader() as image_loader:
+                image_tasks = [self._load_image(img_input, image_loader) for img_input in image_inputs]
+                loaded_images = await asyncio.gather(*image_tasks, return_exceptions=True)
+            
+            # Separate successful and failed image loads
+            valid_images = []
+            valid_prompts = []
+            results = []
+            
+            for i, (image_result, prompt) in enumerate(zip(loaded_images, text_prompts)):
+                if isinstance(image_result, Exception):
+                    # Create failed result for image loading error
+                    failed_result = self._create_failed_result(
+                        image_inputs[i], prompt, f"Image loading failed: {image_result}"
+                    )
+                    results.append(failed_result)
+                else:
+                    valid_images.append(image_result)
+                    valid_prompts.append(prompt)
+            
+            # Process valid images with native batch processing
+            if valid_images:
+                try:
+                    clip_scores, inference_time = await self.similarity_model.compute_batch_similarity(
+                        valid_images, valid_prompts
+                    )
+                    
+                    # Create results for successful evaluations
+                    avg_time_per_item = ((time.time() - start_time) * 1000) / len(valid_images)
+                    
+                    valid_idx = 0
+                    for i, (image_result, prompt) in enumerate(zip(loaded_images, text_prompts)):
+                        if not isinstance(image_result, Exception):
+                            results.insert(i, EvaluationResult(
+                                image_path=str(image_inputs[i]),
+                                text_prompt=prompt,
+                                clip_score=clip_scores[valid_idx],
+                                processing_time_ms=avg_time_per_item,
+                                error=None,
+                            ))
+                            valid_idx += 1
+                            
+                except Exception as batch_error:
+                    logger.error(f"Batch inference failed: {batch_error}")
+                    # Create error results for all valid images
+                    valid_idx = 0
+                    for i, (image_result, prompt) in enumerate(zip(loaded_images, text_prompts)):
+                        if not isinstance(image_result, Exception):
+                            failed_result = self._create_failed_result(
+                                image_inputs[i], prompt, f"Batch inference failed: {batch_error}"
                             )
-                        )
-                    else:
-                        batch_images.append(image_result)
-                        valid_indices.append(original_idx)
-
-                # Process valid images in PyTorch batch
-                if batch_images:
-                    try:
-                        valid_prompts = [batch_prompts[i] for i in valid_indices]
-
-                        # Use similarity model for batch inference
-                        clip_scores, batch_time = await self.similarity_model.compute_batch_similarity(
-                            batch_images, valid_prompts
-                        )
-
-                        avg_time_per_item = batch_time / len(batch_images)
-
-                        # Create results for valid images
-                        for _, (valid_idx, clip_score) in enumerate(zip(valid_indices, clip_scores, strict=False)):
-                            results.append(
-                                EvaluationResult(
-                                    image_path=str(batch_images_raw[valid_idx]),
-                                    text_prompt=batch_prompts[valid_idx],
-                                    clip_score=clip_score,
-                                    processing_time_ms=avg_time_per_item,
-                                    error=None,
-                                )
-                            )
-
-                    except Exception as e:
-                        logger.error(f"Batch PyTorch processing failed: {e}")
-                        # Fall back to individual async processing
-                        individual_tasks = [
-                            self.evaluate_single(batch_images_raw[valid_idx], batch_prompts[valid_idx], image_loader)
-                            for valid_idx in valid_indices
-                        ]
-                        individual_results = await asyncio.gather(*individual_tasks)
-                        results.extend(individual_results)
-
-                # Add failed results
-                results.extend(failed_results)
-
-        return results
+                            results.insert(i, failed_result)
+                            valid_idx += 1
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Batch evaluation failed: {e}")
+            # Return error results for all inputs
+            return [
+                self._create_failed_result(img_input, prompt, f"Batch evaluation failed: {e}")
+                for img_input, prompt in zip(image_inputs, text_prompts)
+            ]
 
     @classmethod
     def create_fast_evaluator(cls, device: str | None = None, **kwargs) -> "MinimalOpenCLIPEvaluator":

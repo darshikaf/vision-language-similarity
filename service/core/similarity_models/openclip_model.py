@@ -43,6 +43,8 @@ class OpenCLIPSimilarityModel(SimilarityModel):
 
         # Initialize components with timing
         load_start_time = time.time()
+
+        # Model loading is done at runtime to allow dynamic model selection 
         self.model, self.preprocess = self._load_model_sync()
         load_duration = time.time() - load_start_time
         self._model_loaded = True
@@ -103,7 +105,7 @@ class OpenCLIPSimilarityModel(SimilarityModel):
         Returns:
             Tuple of (clip_score, processing_time_ms)
         """
-        # Run inference in thread pool
+        # Offload synchronous PyTorch operations to thread pool
         loop = asyncio.get_event_loop()
         raw_cosine, processing_time = await loop.run_in_executor(
             self._executor, self._run_inference_sync, image, text_prompt
@@ -155,27 +157,39 @@ class OpenCLIPSimilarityModel(SimilarityModel):
         return clip_scores, processing_time
 
     def _run_inference_sync(self, image: Image.Image, text_prompt: str) -> tuple[float, float]:
-        """Run PyTorch inference synchronously in thread pool"""
-        with torch.no_grad():
-            start_time = time.time()
+        """
+        Run PyTorch inference synchronously in thread pool
 
-            # Preprocess image
-            image_tensor = self.preprocess(image).unsqueeze(0).to(self.device)
+        """
+        try:
+            with torch.no_grad():
+                start_time = time.time()
 
-            # Tokenize text
-            text_tokens = open_clip.tokenize([text_prompt]).to(self.device)
+                # 1. Preprocess image
+                image_tensor = self.preprocess(image).unsqueeze(0).to(self.device)
 
-            # Extract and normalize features
-            image_features = F.normalize(self.model.encode_image(image_tensor), p=2, dim=-1)
-            text_features = F.normalize(self.model.encode_text(text_tokens), p=2, dim=-1)
+                # 2. Tokenize text
+                text_tokens = open_clip.tokenize([text_prompt]).to(self.device)
 
-            # Calculate similarity
-            raw_cosine = torch.cosine_similarity(image_features, text_features, dim=-1).item()
-            # TODO: Profile if below implementation is faster because L2 normalization is already applied
-            # raw_cosine = torch.sum(image_features * text_features, dim=-1).item()
+                # 3. Extract features
+                image_features = F.normalize(self.model.encode_image(image_tensor), p=2, dim=-1)
 
-            processing_time = (time.time() - start_time) * 1000
-            return raw_cosine, processing_time
+                # 4. Normalize text features
+                text_features = F.normalize(self.model.encode_text(text_tokens), p=2, dim=-1)
+
+                # 5. Calculate cosine similarity
+                raw_cosine = torch.cosine_similarity(image_features, text_features, dim=-1).item()
+                # TODO: Profile if below implementation is faster because L2 normalization is already applied
+                # raw_cosine = torch.sum(image_features * text_features, dim=-1).item()
+
+                processing_time = (time.time() - start_time) * 1000
+                return raw_cosine, processing_time
+        except torch.cuda.OutOfMemoryError as e:
+            logger.error(f"CUDA OOM during inference: {e}")
+            raise ModelError("Out of memory during inference. Try reducing batch size or image resolution.") from e
+        except Exception as e:
+            logger.error(f"Error during inference: {e}")
+            raise ModelError(f"Failed to compute similarity: {e}") from e
 
     def _run_batch_inference_sync(
         self, images: list[Image.Image], text_prompts: list[str]

@@ -40,6 +40,12 @@ A high-performance vision-language similarity evaluation service built with Open
   - [Common Issues](#common-issues)
   - [Debug Mode](#debug-mode)
   - [Performance Optimization](#performance-optimization)
+- [Future Improvements](#future-improvements)
+  - [Performance Optimization](#performance-optimization-1)
+  - [Scalability & Production](#scalability--production)
+  - [Monitoring & Observability](#monitoring--observability)
+  - [Testing & Quality](#testing--quality)
+
 
 ## Features
 
@@ -61,6 +67,8 @@ A high-performance vision-language similarity evaluation service built with Open
 - Make (for build automation)
 
 ### Development Setup
+
+__IMPORTANT__: Dev set up is only supported for `ARM64/M1`.
 
 1. **Clone and setup the environment:**
    ```bash
@@ -388,7 +396,7 @@ Where embeddings are L2-normalized before similarity calculation.
 3. **Test Your Changes:**
    ```bash
    # Test the service locally
-   make run-local-tel
+   make run-local-otel
    
    # Run load tests
    make load-test
@@ -429,3 +437,32 @@ docker-compose logs -f vision-language-similarity-service
 - Enable ensemble models for similarity calculation
 - Intelligent prompt classification
 - Use Ray Serve for auto-scaling production workloads
+
+## Future Improvements
+
+### Performance Optimization
+- **True Batch Processing**: Implement native PyTorch batching instead of concurrent single requests
+- **Model Caching**: Add LRU cache with memory limits for model management
+- **GPU Memory Management**: Monitor and optimize GPU memory usage
+- **Feature Caching**: Cache embeddings for frequently processed images
+- **Connection Pooling**: Optimize HTTP client connection reuse
+
+### Scalability & Production
+- **Graceful Shutdown**: Implement proper cleanup on service termination
+- **Health Checks**: Add comprehensive health monitoring including model status
+- **Auto-scaling**: Enhanced Ray Serve configuration for traffic-based scaling
+- **Multi-GPU Support**: Distribute models across multiple GPUs
+- **Distributed Caching**: Redis-based caching for multi-replica deployments
+
+### Monitoring & Observability
+- **Enhanced Metrics**: Add model-specific performance and accuracy metrics
+- **Alerting**: Implement automated alerts for failures and performance degradation
+- **Distributed Tracing**: Complete OpenTelemetry integration across all components
+- **Performance Benchmarks**: Automated regression testing for performance
+- **Security Logging**: Audit logs for security events and access patterns
+
+### Testing & Quality
+- **Test Coverage**: Expand coverage to include Ray Serve and error paths
+- **Load Testing**: Automated performance validation in CI/CD
+- **Security Testing**: Penetration testing and vulnerability scanning
+- **Chaos Engineering**: Fault injection testing for resilience validation

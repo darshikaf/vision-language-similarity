@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import asynccontextmanager
 import logging
 from typing import Any
 
@@ -21,64 +20,6 @@ class ModelManager:
 
     def __init__(self):
         self._models: dict[str, MinimalOpenCLIPEvaluator] = {}
-        self._lock = asyncio.Lock()
-
-    async def get_model(self, config_name: str) -> MinimalOpenCLIPEvaluator:
-        """
-        Get or create a model instance with thread-safe initialization
-
-        Args:
-            config_name: Model configuration name
-
-        Returns:
-            Initialized evaluator instance
-        """
-        # Fast path: return cached model if healthy
-        if config_name in self._models:
-            model = self._models[config_name]
-            if await self._is_healthy(model):
-                return model
-            else:
-                logger.warning(f"Model {config_name} failed health check, reloading...")
-                await self._cleanup_model(config_name)
-
-        # Slow path: load model with lock
-        async with self._lock:
-            # Double-check pattern
-            if config_name in self._models:
-                return self._models[config_name]
-
-            # Create new model
-            model = await self._create_model(config_name)
-            self._models[config_name] = model
-
-            logger.info(f"Loaded and cached model: {config_name}")
-            return model
-
-    async def _create_model(self, config_name: str) -> MinimalOpenCLIPEvaluator:
-        """Create a new model instance - direct creation logic"""
-        logger.info(f"Creating model: {config_name}")
-
-        # Verify config exists
-        try:
-            _ = model_registry.get_model_spec(config_name)
-        except KeyError as e:
-            raise ValueError(f"Failed to load model configuration: {config_name}") from e
-
-        # Create evaluator using factory methods for known configs, direct constructor for custom
-        model_kwargs = {
-            "device": None,  # Auto-detect
-            "cache_dir": settings.model.cache_dir,
-            "max_workers": settings.model.max_workers,
-        }
-
-        if config_name == "fast":
-            return MinimalOpenCLIPEvaluator.create_fast_evaluator(**model_kwargs)
-        elif config_name == "accurate":
-            return MinimalOpenCLIPEvaluator.create_accurate_evaluator(**model_kwargs)
-        else:
-            # For custom configs, use direct constructor
-            return MinimalOpenCLIPEvaluator(model_config_name=config_name, **model_kwargs)
 
     async def _is_healthy(self, model: MinimalOpenCLIPEvaluator) -> bool:
         """Simple health check for model"""
@@ -174,15 +115,6 @@ class ModelManager:
         except Exception as e:
             logger.warning(f"Could not get runtime info for {config_name}: {e}")
             return {}
-
-    @asynccontextmanager
-    async def model_context(self, config_name: str):
-        """Context manager for temporary model usage"""
-        model = await self.get_model(config_name)
-        try:
-            yield model
-        finally:
-            pass
 
     def get_status(self) -> dict[str, Any]:
         """Get overall model manager status"""

@@ -1,8 +1,11 @@
 import asyncio
+from collections import defaultdict
 import logging
 import time
 
+from service.config.model_configs import model_registry
 from service.core import EvaluationResult, MinimalOpenCLIPEvaluator
+from service.core.exceptions import ServiceError
 from service.observability.prometheus_middleware import get_metrics_middleware
 
 from .schema import (
@@ -21,20 +24,18 @@ class EvaluationHandler:
 
     def __init__(self):
         self._evaluators: dict[str, MinimalOpenCLIPEvaluator] = {}
-        self._model_configs = {
-            "fast": {"model_name": "ViT-B-32", "pretrained": "laion2b_s34b_b79k"},
-            "accurate": {"model_name": "ViT-L-14", "pretrained": "laion2b_s32b_b82k"},
-        }
 
     def _get_evaluator(self, model_config: str) -> MinimalOpenCLIPEvaluator:
         """Get or create evaluator for given config"""
         if model_config not in self._evaluators:
-            if model_config == "fast":
-                self._evaluators[model_config] = MinimalOpenCLIPEvaluator.create_fast_evaluator()
-            elif model_config == "accurate":
-                self._evaluators[model_config] = MinimalOpenCLIPEvaluator.create_accurate_evaluator()
-            else:
-                raise ValueError(f"Unknown model configuration: {model_config}")
+            try:
+                # Validate config exists in registry
+                model_registry.get_model_spec(model_config)
+                # Create evaluator
+                self._evaluators[model_config] = MinimalOpenCLIPEvaluator(model_config_name=model_config)
+            except ValueError as e:
+                available_configs = list(model_registry.list_available_models().keys())
+                raise ValueError(f"Unknown model configuration: {model_config}. Available: {available_configs}") from e
 
         return self._evaluators[model_config]
 
@@ -83,11 +84,30 @@ class EvaluationHandler:
         # Batch optimization per model - group requests by model config
         # Address multiple loading of same model concurrently
         # Use evaluator's native batch processing
+
+        FIXME: model config grouping added significant overhead. Needs investigation
         """
         start_time = time.time()
 
-        tasks = [self.evaluate_single(eval_req) for eval_req in request.evaluations]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # tasks = [self.evaluate_single(eval_req) for eval_req in request.evaluations]
+        # results = await asyncio.gather(*tasks, return_exceptions=True)
+        config_groups = defaultdict(list)
+        for i, eval_req in enumerate(request.evaluations):
+            model_config = eval_req.model_config_name or "fast"
+            config_groups[model_config].append((i, eval_req))
+
+        # Process each group and collect results with original indices
+        all_results = {}
+        for model_config, indexed_requests in config_groups.items():
+            tasks = [self.evaluate_single(eval_req) for _, eval_req in indexed_requests]
+            group_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # Map results back to original indices
+            for (original_index, _), result in zip(indexed_requests, group_results):
+                all_results[original_index] = result
+
+        # Reconstruct results in original order
+        results = [all_results[i] for i in range(len(request.evaluations))]
 
         # Handle any exceptions that occurred during processing
         final_results = []
@@ -95,14 +115,16 @@ class EvaluationHandler:
             if isinstance(result, Exception):
                 eval_req = request.evaluations[i]
                 model_config = eval_req.model_config_name or "fast"
-                failed_result = EvaluationResult(
-                    image_path=eval_req.image_input,
+                
+                failed_response = EvaluationResponse(
+                    image_input=eval_req.image_input,
                     text_prompt=eval_req.text_prompt,
                     clip_score=0.0,
                     processing_time_ms=0.0,
                     error=str(result),
+                    model_used=model_config,
                 )
-                final_results.append(self._evaluation_result_to_response(failed_result, model_config))
+                final_results.append(failed_response)
             else:
                 final_results.append(result)
 
@@ -135,6 +157,9 @@ class EvaluationHandler:
                 and hasattr(evaluator, "similarity_model")
                 and hasattr(evaluator.similarity_model, "model")
             )
+        except (ServiceError, ValueError):
+            # Re-raise service and validation errors to be handled by route exception handler
+            raise
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             model_loaded = False
@@ -142,7 +167,7 @@ class EvaluationHandler:
         return HealthResponse(
             status="healthy" if model_loaded else "unhealthy",
             model_loaded=model_loaded,
-            available_configs=list(self._model_configs.keys()),
+            available_configs=list(model_registry.list_available_models().keys()),
         )
 
 

@@ -91,14 +91,19 @@ class DynamicModelRegistry:
         # Look for MODEL_CONFIG_<NAME> environment variables
         for env_var in os.environ:
             if env_var.startswith("MODEL_CONFIG_"):
-                model_name = env_var.replace("MODEL_CONFIG_", "").lower()
                 try:
-                    spec_dict = json.loads(os.environ[env_var])
-                    spec = CLIPModelSpec(**spec_dict)
-                    self._models[model_name] = spec
-                    logger.info(f"Loaded model config from env: {model_name}")
+                    env_config = json.loads(os.environ[env_var])
+                    
+                    for name, spec_dict in env_config.get("models", {}).items():
+                        try:
+                            spec = CLIPModelSpec(**spec_dict)
+                            self._models[name] = spec
+                            logger.info(f"Loaded model config from env {env_var}: {name}")
+                        except Exception as e:
+                            logger.error(f"Invalid model spec for {name} in {env_var}: {e}")
+                            
                 except Exception as e:
-                    logger.error(f"Invalid model spec in {env_var}: {e}")
+                    logger.error(f"Invalid JSON or model spec in {env_var}: {e}")
 
     def get_model_spec(self, config_name: str) -> CLIPModelSpec:
         """Get model specification by name"""

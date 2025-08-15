@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class EvaluationRequest(BaseModel):
@@ -7,6 +7,14 @@ class EvaluationRequest(BaseModel):
     image_input: str = Field(..., description="Image URL or base64-encoded image")
     text_prompt: str = Field(..., description="Text description to compare with image")
     model_config_name: str | None = Field("fast", description="Model configuration: 'fast' or 'accurate'")
+
+    @field_validator('image_input', 'text_prompt')
+    @classmethod
+    def validate_not_empty(cls, v: str) -> str:
+        """Validate that required string fields are not empty"""
+        if not v or not v.strip():
+            raise ValueError("Field cannot be empty")
+        return v
 
 
 class BatchEvaluationRequest(BaseModel):
