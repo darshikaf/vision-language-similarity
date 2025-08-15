@@ -116,22 +116,29 @@ class TestMinimalOpenCLIPEvaluator:
 
     @pytest.mark.asyncio
     @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
-    @patch('service.core.ml.engines.evaluator.ImageLoader')
-    async def test_evaluate_single_success(self, mock_image_loader_class, mock_create_model, sample_image, sample_text_prompt):
+    async def test_evaluate_single_success(self, mock_create_model, sample_image, sample_text_prompt):
         """Test successful single evaluation"""
         # Mock similarity model
         mock_similarity_model = Mock()
         mock_similarity_model.compute_similarity = AsyncMock(return_value=(0.85, 50.0))  # (score, inference_time)
+        mock_similarity_model.model_name = "ViT-B-32"
         mock_create_model.return_value = mock_similarity_model
         
-        # Mock image loader with async context manager support
-        mock_image_loader = AsyncMock()
-        mock_image_loader.load_image = AsyncMock(return_value=sample_image)
-        mock_image_loader.__aenter__ = AsyncMock(return_value=mock_image_loader)
-        mock_image_loader.__aexit__ = AsyncMock(return_value=None)
-        mock_image_loader_class.return_value = mock_image_loader
+        # Create mock image processor
+        mock_image_processor = AsyncMock()
+        mock_image_processor.load_image = AsyncMock(return_value=sample_image)
+        mock_image_processor.determine_source_type = Mock(return_value="file")
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        # Create mock metrics recorder (disabled)
+        mock_metrics_recorder = Mock()
+        mock_metrics_recorder.record_success_metrics = AsyncMock()
+        mock_metrics_recorder.enabled = False
+        
+        evaluator = MinimalOpenCLIPEvaluator(
+            model_config_name="fast",
+            image_processor=mock_image_processor,
+            metrics_recorder=mock_metrics_recorder
+        )
         
         result = await evaluator.evaluate_single("test_image.jpg", sample_text_prompt)
         
@@ -143,21 +150,27 @@ class TestMinimalOpenCLIPEvaluator:
 
     @pytest.mark.asyncio
     @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
-    @patch('service.core.ml.engines.evaluator.ImageLoader')
-    async def test_evaluate_single_image_loading_error(self, mock_image_loader_class, mock_create_model):
+    async def test_evaluate_single_image_loading_error(self, mock_create_model):
         """Test single evaluation with image loading error"""
         # Mock similarity model
         mock_similarity_model = Mock()
+        mock_similarity_model.model_name = "ViT-B-32"
         mock_create_model.return_value = mock_similarity_model
         
-        # Mock image loader to raise error with async context manager support
-        mock_image_loader = AsyncMock()
-        mock_image_loader.load_image = AsyncMock(side_effect=Exception("Image loading failed"))
-        mock_image_loader.__aenter__ = AsyncMock(return_value=mock_image_loader)
-        mock_image_loader.__aexit__ = AsyncMock(return_value=None)
-        mock_image_loader_class.return_value = mock_image_loader
+        # Create mock image processor that raises error
+        mock_image_processor = AsyncMock()
+        mock_image_processor.load_image = AsyncMock(side_effect=Exception("Image loading failed"))
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        # Create mock metrics recorder 
+        mock_metrics_recorder = Mock()
+        mock_metrics_recorder.extract_error_type = Mock(return_value=None)
+        mock_metrics_recorder.record_error_metrics = Mock()
+        
+        evaluator = MinimalOpenCLIPEvaluator(
+            model_config_name="fast",
+            image_processor=mock_image_processor,
+            metrics_recorder=mock_metrics_recorder
+        )
         
         result = await evaluator.evaluate_single("bad_image.jpg", "test prompt")
         
@@ -169,22 +182,29 @@ class TestMinimalOpenCLIPEvaluator:
 
     @pytest.mark.asyncio
     @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
-    @patch('service.core.ml.engines.evaluator.ImageLoader')
-    async def test_evaluate_single_similarity_computation_error(self, mock_image_loader_class, mock_create_model, sample_image):
+    async def test_evaluate_single_similarity_computation_error(self, mock_create_model, sample_image):
         """Test single evaluation with similarity computation error"""
         # Mock similarity model to raise error
         mock_similarity_model = Mock()
         mock_similarity_model.compute_similarity = AsyncMock(side_effect=Exception("Model inference failed"))
+        mock_similarity_model.model_name = "ViT-B-32"
         mock_create_model.return_value = mock_similarity_model
         
-        # Mock image loader with async context manager support
-        mock_image_loader = AsyncMock()
-        mock_image_loader.load_image = AsyncMock(return_value=sample_image)
-        mock_image_loader.__aenter__ = AsyncMock(return_value=mock_image_loader)
-        mock_image_loader.__aexit__ = AsyncMock(return_value=None)
-        mock_image_loader_class.return_value = mock_image_loader
+        # Create mock image processor
+        mock_image_processor = AsyncMock()
+        mock_image_processor.load_image = AsyncMock(return_value=sample_image)
+        mock_image_processor.determine_source_type = Mock(return_value="file")
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        # Create mock metrics recorder 
+        mock_metrics_recorder = Mock()
+        mock_metrics_recorder.extract_error_type = Mock(return_value=None)
+        mock_metrics_recorder.record_error_metrics = Mock()
+        
+        evaluator = MinimalOpenCLIPEvaluator(
+            model_config_name="fast",
+            image_processor=mock_image_processor,
+            metrics_recorder=mock_metrics_recorder
+        )
         
         result = await evaluator.evaluate_single("test_image.jpg", "test prompt")
         

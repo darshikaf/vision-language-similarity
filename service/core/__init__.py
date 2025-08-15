@@ -1,6 +1,5 @@
-# Clean API exports from reorganized structure
 from .ml.engines.evaluator import MinimalOpenCLIPEvaluator
-from .ml.preprocessing.image_loader import ImageLoader
+from .ml.utils.image_loader import ImageLoader
 from .device_manager import DeviceManager
 from .types import EvaluationResult, ModelConfig
 from .config import model_registry

@@ -4,7 +4,7 @@ import pytest
 from PIL import Image
 import httpx
 
-from service.core.ml.preprocessing.image_loader import ImageLoader
+from service.core.ml.utils.image_loader import ImageLoader
 from service.core.exceptions import ImageProcessingError, NetworkError
 
 
