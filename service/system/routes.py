@@ -10,9 +10,9 @@ from service.model_management import model_manager
 
 logger = logging.getLogger(__name__)
 
-ADMIN_PREFIX = "/v1/admin"
+SYSTEM_PREFIX = "/v1/system"
 
-router = APIRouter(prefix=ADMIN_PREFIX, tags=["admin"])
+router = APIRouter(prefix=SYSTEM_PREFIX, tags=["system"])
 
 
 def common_exception_handler(func):
