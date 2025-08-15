@@ -5,7 +5,7 @@ from starlette.responses import JSONResponse
 
 from service import evaluation, system
 from service.constants import APP_NAME, APP_TITLE, PATH_PREFIX
-from service.observability.prometheus_middleware import (
+from service.core.observability import (
     PrometheusMiddleware,
     get_metrics_middleware,
     metrics_endpoint,

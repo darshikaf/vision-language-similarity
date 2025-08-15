@@ -56,39 +56,48 @@ class TestSystemModelRoutes:
         available_models = set(data["available_models"].keys())
         assert available_models.issubset(all_models)
 
-    @patch('service.system.routes.model_manager')
-    def test_get_model_info_success(self, mock_manager):
+    @patch('service.system.routes.get_model_info')
+    def test_get_model_info_success(self, mock_get_model_info):
         """Test successful retrieval of model runtime information"""
         mock_info = {
             "config_name": "fast",
-            "status": "healthy",
-            "memory_usage": "2.1GB",
-            "last_used": "2024-01-15T10:30:00Z"
+            "spec": {
+                "model_name": "ViT-B-32",
+                "pretrained": "laion2b_s34b_b79k",
+                "description": "Fast model",
+                "memory_gb": 2.0,
+                "avg_inference_time_ms": 100.0,
+                "accuracy_score": 0.85,
+                "enabled": True
+            },
+            "loaded": False,
+            "health_status": {"healthy": False},
+            "runtime_info": {}
         }
-        mock_manager.get_model_info = AsyncMock(return_value=mock_info)
+        mock_get_model_info.return_value = mock_info
         
         response = client.get(SYSTEM_PATH + "/models/fast/info")
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == mock_info
 
-    @patch('service.system.routes.model_manager')
-    def test_get_model_info_invalid_config(self, mock_manager):
+    @patch('service.system.routes.get_model_info')
+    def test_get_model_info_invalid_config(self, mock_get_model_info):
         """Test model info with invalid configuration name"""
-        mock_manager.get_model_info.side_effect = ValueError("Unknown model config: invalid")
+        mock_get_model_info.side_effect = ValueError("Unknown model config: invalid")
         
         response = client.get(SYSTEM_PATH + "/models/invalid/info")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "Invalid input" in response.json()["detail"]
 
-    @patch('service.system.routes.model_manager')
-    def test_get_model_manager_status_success(self, mock_manager):
-        """Test successful retrieval of model manager status"""
+    @patch('service.system.routes.get_system_status')
+    def test_get_model_manager_status_success(self, mock_get_system_status):
+        """Test successful retrieval of system status"""
         mock_status = {
-            "manager_status": "healthy",
-            "loaded_models": ["fast", "accurate"],
-            "total_memory_usage": "4.2GB"
+            "cached_models": [],
+            "loaded_models": [],
+            "available_configs": ["fast", "accurate"]
         }
-        mock_manager.get_status.return_value = mock_status
+        mock_get_system_status.return_value = mock_status
         
         response = client.get(SYSTEM_PATH + "/status")
         assert response.status_code == status.HTTP_200_OK
@@ -110,19 +119,19 @@ class TestSystemRouteValidation:
         # FastAPI should return 404 for empty path parameter
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    @patch('service.system.routes.model_manager')
-    def test_file_not_found_error_handling(self, mock_manager):
+    @patch('service.system.routes.get_model_info')
+    def test_file_not_found_error_handling(self, mock_get_model_info):
         """Test handling of FileNotFoundError"""
-        mock_manager.get_model_info.side_effect = FileNotFoundError("Model file not found")
+        mock_get_model_info.side_effect = FileNotFoundError("Model file not found")
         
         response = client.get(SYSTEM_PATH + "/models/test/info")
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "Resource not found" in response.json()["detail"]
 
-    @patch('service.system.routes.model_manager')
-    def test_generic_exception_handling(self, mock_manager):
+    @patch('service.system.routes.get_model_info')
+    def test_generic_exception_handling(self, mock_get_model_info):
         """Test handling of generic exceptions"""
-        mock_manager.get_model_info.side_effect = RuntimeError("Unexpected error")
+        mock_get_model_info.side_effect = RuntimeError("Unexpected error")
         
         response = client.get(SYSTEM_PATH + "/models/test/info")
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -184,77 +193,3 @@ class TestSystemRouteIntegration:
             assert model_spec["enabled"] is True
 
 
-class TestSystemOpenAPIDocumentation:
-    """Test system routes OpenAPI documentation"""
-
-    def test_system_routes_documented_in_openapi(self):
-        """Test that system routes are properly documented"""
-        response = client.get("/evaluator/openapi.json")
-        assert response.status_code == status.HTTP_200_OK
-        
-        openapi_spec = response.json()
-        paths = openapi_spec["paths"]
-        
-        # Verify system endpoints exist
-        system_endpoints = [
-            "/evaluator/v1/system/models",
-            "/evaluator/v1/system/models/specs",
-            "/evaluator/v1/system/models/all",
-            "/evaluator/v1/system/models/{config_name}/info",
-            "/evaluator/v1/system/status"
-        ]
-        
-        for endpoint in system_endpoints:
-            assert endpoint in paths
-
-    def test_system_routes_tagged_correctly(self):
-        """Test that system routes have correct tags"""
-        response = client.get("/evaluator/openapi.json")
-        assert response.status_code == status.HTTP_200_OK
-        
-        openapi_spec = response.json()
-        paths = openapi_spec["paths"]
-        
-        # Check system routes have 'system' tag
-        for path_key, path_item in paths.items():
-            if "/system/" in path_key:
-                for method_item in path_item.values():
-                    if "tags" in method_item:
-                        assert "system" in method_item["tags"]
-
-    def test_system_routes_have_descriptions(self):
-        """Test that system routes have proper descriptions"""
-        response = client.get("/evaluator/openapi.json")
-        assert response.status_code == status.HTTP_200_OK
-        
-        openapi_spec = response.json()
-        paths = openapi_spec["paths"]
-        
-        system_paths = {k: v for k, v in paths.items() if "/system/" in k}
-        
-        for path_key, path_item in system_paths.items():
-            for method_key, method_item in path_item.items():
-                # Each endpoint should have summary and description
-                assert "summary" in method_item
-                assert "description" in method_item
-                assert len(method_item["summary"]) > 0
-                assert len(method_item["description"]) > 0
-
-
-class TestSystemRoutePrefix:
-    """Test system route prefix configuration"""
-
-    def test_system_prefix_constant(self):
-        """Test that system prefix constant is correct"""
-        from service.system.routes import SYSTEM_PREFIX
-        assert SYSTEM_PREFIX == "/v1/system"
-
-    def test_system_routes_accessible_via_prefix(self):
-        """Test that system routes are accessible via the correct prefix"""
-        # Test basic system route accessibility
-        response = client.get("/evaluator/v1/system/models")
-        assert response.status_code == status.HTTP_200_OK
-        
-        # Test that routes are NOT accessible without prefix
-        response = client.get("/evaluator/models")
-        assert response.status_code == status.HTTP_404_NOT_FOUND

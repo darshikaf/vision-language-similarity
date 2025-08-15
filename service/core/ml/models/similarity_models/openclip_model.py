@@ -11,8 +11,8 @@ import torch.nn.functional as F  # noqa: F401, N812
 
 from service.core.device_manager import DeviceManager
 from service.core.exceptions import ModelError, ValidationError
-from service.core.similarity_models.base import SimilarityModel
-from service.observability.prometheus_middleware import get_metrics_middleware
+from service.core.ml.models.similarity_models.base import SimilarityModel
+from service.core.observability import get_metrics_middleware
 
 logger = logging.getLogger(__name__)
 

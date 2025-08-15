@@ -3,10 +3,10 @@ from collections import defaultdict
 import logging
 import time
 
-from service.config.model_configs import model_registry
+from service.core.config import model_registry
 from service.core import EvaluationResult, MinimalOpenCLIPEvaluator
 from service.core.exceptions import ServiceError
-from service.observability.prometheus_middleware import get_metrics_middleware
+from service.core.observability import get_metrics_middleware
 
 from .schema import (
     BatchEvaluationRequest,

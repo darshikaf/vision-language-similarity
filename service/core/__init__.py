@@ -1,12 +1,17 @@
+# Clean API exports from reorganized structure
+from .ml.engines.evaluator import MinimalOpenCLIPEvaluator
+from .ml.preprocessing.image_loader import ImageLoader
 from .device_manager import DeviceManager
-from .evaluator import MinimalOpenCLIPEvaluator
-from .image_loader import ImageLoader
-from .models import EvaluationResult, ModelConfig
+from .types import EvaluationResult, ModelConfig
+from .config import model_registry
+from .observability import get_metrics_middleware
 
 __all__ = [
     "EvaluationResult",
-    "ModelConfig",
+    "ModelConfig", 
     "MinimalOpenCLIPEvaluator",
     "DeviceManager",
     "ImageLoader",
+    "model_registry",
+    "get_metrics_middleware",
 ]

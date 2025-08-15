@@ -2,9 +2,9 @@ from unittest.mock import patch, Mock, AsyncMock
 import pytest
 from PIL import Image
 
-from service.core.evaluator import MinimalOpenCLIPEvaluator
+from service.core.ml.engines.evaluator import MinimalOpenCLIPEvaluator
 from service.core.exceptions import ValidationError
-from service.config.model_configs import CLIPModelSpec
+from service.core.config import CLIPModelSpec
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ def mock_clip_model_spec():
 class TestMinimalOpenCLIPEvaluator:
     """Test MinimalOpenCLIPEvaluator functionality"""
 
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     def test_evaluator_initialization_with_config_name(self, mock_create_model):
         """Test evaluator initialization with model config name"""
         mock_similarity_model = Mock()
@@ -67,7 +67,7 @@ class TestMinimalOpenCLIPEvaluator:
         assert evaluator.similarity_model == mock_similarity_model
         mock_create_model.assert_called_once_with("fast", device=None)
 
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     def test_evaluator_initialization_with_spec(self, mock_create_model, mock_clip_model_spec):
         """Test evaluator initialization with model spec"""
         mock_similarity_model = Mock()
@@ -79,7 +79,7 @@ class TestMinimalOpenCLIPEvaluator:
         assert evaluator.similarity_model == mock_similarity_model
         mock_create_model.assert_called_once_with("custom", device=None, model_spec=mock_clip_model_spec)
 
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     def test_evaluator_initialization_requires_config(self, mock_create_model):
         """Test evaluator uses default config when none specified"""
         mock_similarity_model = Mock()
@@ -92,7 +92,7 @@ class TestMinimalOpenCLIPEvaluator:
         assert evaluator.similarity_model == mock_similarity_model
         mock_create_model.assert_called_once_with("fast", device=None)
 
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     def test_factory_method_create_fast_evaluator(self, mock_create_model):
         """Test factory method for fast evaluator"""
         mock_similarity_model = Mock()
@@ -103,7 +103,7 @@ class TestMinimalOpenCLIPEvaluator:
         assert evaluator.similarity_model == mock_similarity_model
         mock_create_model.assert_called_once_with("fast", device=None)
 
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     def test_factory_method_create_accurate_evaluator(self, mock_create_model):
         """Test factory method for accurate evaluator"""
         mock_similarity_model = Mock()
@@ -115,8 +115,8 @@ class TestMinimalOpenCLIPEvaluator:
         mock_create_model.assert_called_once_with("accurate", device=None)
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
-    @patch('service.core.evaluator.ImageLoader')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.ImageLoader')
     async def test_evaluate_single_success(self, mock_image_loader_class, mock_create_model, sample_image, sample_text_prompt):
         """Test successful single evaluation"""
         # Mock similarity model
@@ -142,8 +142,8 @@ class TestMinimalOpenCLIPEvaluator:
         assert result.error is None
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
-    @patch('service.core.evaluator.ImageLoader')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.ImageLoader')
     async def test_evaluate_single_image_loading_error(self, mock_image_loader_class, mock_create_model):
         """Test single evaluation with image loading error"""
         # Mock similarity model
@@ -168,8 +168,8 @@ class TestMinimalOpenCLIPEvaluator:
         assert "Image loading failed" in result.error
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
-    @patch('service.core.evaluator.ImageLoader')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.ImageLoader')
     async def test_evaluate_single_similarity_computation_error(self, mock_image_loader_class, mock_create_model, sample_image):
         """Test single evaluation with similarity computation error"""
         # Mock similarity model to raise error
@@ -193,7 +193,7 @@ class TestMinimalOpenCLIPEvaluator:
         assert "Model inference failed" in result.error
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     async def test_evaluate_batch_success(self, mock_create_model, sample_batch_images, sample_batch_prompts):
         """Test successful batch evaluation"""
         # Mock similarity model
@@ -212,7 +212,7 @@ class TestMinimalOpenCLIPEvaluator:
             assert result.error is None
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     async def test_evaluate_batch_length_mismatch(self, mock_create_model, sample_batch_images):
         """Test batch evaluation with mismatched lengths"""
         mock_similarity_model = Mock()
@@ -227,7 +227,7 @@ class TestMinimalOpenCLIPEvaluator:
             await evaluator.evaluate_batch(sample_batch_images, mismatched_prompts)
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     async def test_evaluate_batch_empty_inputs(self, mock_create_model):
         """Test batch evaluation with empty inputs"""
         mock_similarity_model = Mock()
@@ -240,7 +240,7 @@ class TestMinimalOpenCLIPEvaluator:
         assert len(results) == 0
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     async def test_evaluate_batch_with_batch_size(self, mock_create_model, sample_batch_images, sample_batch_prompts):
         """Test batch evaluation with custom batch size"""
         # Mock similarity model to track calls
@@ -262,7 +262,7 @@ class TestMinimalOpenCLIPEvaluatorEdgeCases:
     """Test evaluator edge cases and error scenarios"""
 
     @pytest.mark.parametrize("model_config", ["fast", "accurate"])
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     def test_evaluator_with_different_configs(self, mock_create_model, model_config):
         """Test evaluator with different model configurations"""
         mock_similarity_model = Mock()
@@ -274,7 +274,7 @@ class TestMinimalOpenCLIPEvaluatorEdgeCases:
         mock_create_model.assert_called_once_with(model_config, device=None)
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     async def test_evaluate_batch_partial_failure(self, mock_create_model):
         """Test batch evaluation with partial failures"""
         # Mock similarity model to fail on second item
@@ -298,7 +298,7 @@ class TestMinimalOpenCLIPEvaluatorEdgeCases:
             assert result.error is not None
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     async def test_evaluate_single_with_pil_image(self, mock_create_model, sample_image):
         """Test single evaluation with PIL Image instead of path"""
         mock_similarity_model = Mock()
@@ -315,7 +315,7 @@ class TestMinimalOpenCLIPEvaluatorEdgeCases:
         assert result.error is None
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     async def test_clip_score_scaling(self, mock_create_model, sample_image):
         """Test CLIP score handling with different similarity values"""
         mock_similarity_model = Mock()
@@ -337,7 +337,7 @@ class TestMinimalOpenCLIPEvaluatorIntegration:
     """Test evaluator integration scenarios"""
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     async def test_mixed_evaluation_operations(self, mock_create_model, sample_image):
         """Test mixing single and batch operations"""
         mock_similarity_model = Mock()
@@ -358,7 +358,7 @@ class TestMinimalOpenCLIPEvaluatorIntegration:
         assert batch_results[1].clip_score == 0.9
 
     @pytest.mark.asyncio
-    @patch('service.core.evaluator.SimilarityModelFactory.create_model')
+    @patch('service.core.ml.engines.evaluator.SimilarityModelFactory.create_model')
     async def test_concurrent_evaluations(self, mock_create_model, sample_image):
         """Test concurrent evaluation operations"""
         import asyncio

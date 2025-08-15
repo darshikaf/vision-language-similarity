@@ -6,10 +6,10 @@ import time
 from PIL import Image
 
 from service.core.exceptions import ServiceError, ValidationError
-from service.core.image_loader import ImageLoader
-from service.core.models import EvaluationResult
-from service.core.similarity_models import SimilarityModelFactory
-from service.observability.prometheus_middleware import get_metrics_middleware
+from service.core.ml.preprocessing.image_loader import ImageLoader
+from service.core.types import EvaluationResult
+from service.core.ml.models.similarity_models import SimilarityModelFactory
+from service.core.observability import get_metrics_middleware
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

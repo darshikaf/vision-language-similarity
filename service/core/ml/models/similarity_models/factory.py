@@ -1,8 +1,8 @@
 from typing import Any
 
-from service.config.model_configs import model_registry
-from service.core.similarity_models.base import SimilarityModel
-from service.core.similarity_models.openclip_model import OpenCLIPSimilarityModel
+from service.core.config import model_registry
+from service.core.ml.models.similarity_models.base import SimilarityModel
+from service.core.ml.models.similarity_models.openclip_model import OpenCLIPSimilarityModel
 
 
 class SimilarityModelFactory:
