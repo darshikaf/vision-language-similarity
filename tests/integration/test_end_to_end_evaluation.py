@@ -5,8 +5,6 @@ from fastapi import status
 
 
 class TestEndToEndEvaluation:
-    """Integration tests using real models and data following ai_reporter patterns"""
-
     @pytest.mark.integration
     def test_complete_single_evaluation_workflow(self, test_client, matched_image_caption_pairs):
         if not matched_image_caption_pairs:
