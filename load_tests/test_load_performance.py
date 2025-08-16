@@ -247,6 +247,52 @@ class TestServicePerformance:
         
         print(f"Single evaluation response time: {response_time_ms:.2f}ms, CLIP score: {data['clip_score']}")
     
+    def test_batch_evaluation_performance(self, service_host, service_ready):
+        """Test batch evaluation endpoint performance"""
+        
+        # Get batch data with local files preferred
+        batch_data = test_data.get_batch_data(batch_size=3, prefer_local=True)
+        assert len(batch_data) >= 3, "Insufficient test data for batch evaluation"
+        
+        evaluations = []
+        for pair in batch_data:
+            # Use local file if available, otherwise URL
+            image_input = str(pair['local_path']) if pair.get('has_local_file') else pair['url']
+            evaluations.append({
+                "image_input": image_input,
+                "text_prompt": pair["caption"][:100],  # Truncate for faster processing
+                "model_config_name": "fast"
+            })
+        
+        payload = {
+            "evaluations": evaluations,
+            "batch_size": 8,
+            "show_progress": False
+        }
+        
+        # Measure response time
+        start_time = time.time()
+        response = requests.post(f"{service_host}/evaluator/v1/evaluation/batch", 
+                               json=payload, timeout=60)
+        end_time = time.time()
+        
+        response_time_ms = (end_time - start_time) * 1000
+        
+        assert response.status_code == 200, f"Batch evaluation failed: {response.status_code}"
+        
+        data = response.json()
+        assert "total_processed" in data, f"Invalid response: {data}"
+        assert data["total_processed"] == len(evaluations), f"Not all items processed: {data}"
+        assert data["total_successful"] > 0, f"No successful evaluations: {data}"
+        
+        # Performance assertion - batch should be faster per item than individual calls
+        per_item_time_ms = response_time_ms / len(evaluations)
+        assert response_time_ms < 15000, f"Batch evaluation too slow: {response_time_ms}ms"
+        assert per_item_time_ms < 3000, f"Per-item time too slow: {per_item_time_ms}ms"
+        
+        print(f"Batch evaluation: {response_time_ms:.2f}ms total, {per_item_time_ms:.2f}ms per item")
+        print(f"Batch results: {data['total_successful']}/{data['total_processed']} successful")
+    
     def _validate_performance_thresholds(self, metrics: Dict[str, Any], test_name: str, 
                                        thresholds: Dict[str, float] = None):
         """Validate performance metrics against thresholds"""

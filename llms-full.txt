@@ -52,8 +52,6 @@ vision-language-similarity/
 │   └── observability/          # Observability stack configuration
 ├── evaluator_profiler/         # Performance profiling tools
 ├── load_tests/                 # Load testing with Locust
-├── config/                     # Configuration files
-│   └── models.json             # Model specifications
 └── scripts/                    # Build and deployment scripts
 ```
 
@@ -72,10 +70,10 @@ vision-language-similarity/
 - **Error Isolation**: Failed images don't interrupt batch processing
 
 ### Model Management
-- **Dynamic Configuration**: Load model specs from files, environment variables, or defaults
+- **Built-in Configurations**: Default models (fast, accurate) always available
+- **Environment Override**: Custom models via `MODEL_CONFIG_*` environment variables
 - **Caching**: Models cached as singletons to avoid reloading overhead
-- **Multiple Sources**: Support for JSON files, environment variables, and built-in defaults
-- **Hot Reloading**: Runtime configuration updates without service restart
+- **Runtime Updates**: Environment-based configuration changes without rebuilds
 
 ### Async Image Loading
 - **Multiple Sources**: URLs, file paths, base64 data URIs, PIL Image objects
@@ -289,7 +287,7 @@ tests/
 │   ├── test_core_components.py     # Core logic testing
 │   ├── test_evaluation_handler.py  # Handler testing
 │   ├── test_evaluation_api.py      # API endpoint testing
-│   └── test_model_config_management.py # Configuration testing
+│   └── test_model_configs.py          # Model configuration testing
 ├── integration/                # End-to-end tests
 │   └── test_end_to_end_evaluation.py # Full workflow testing
 ├── fixtures/                   # Shared test fixtures
@@ -424,30 +422,27 @@ make clean-otel
 
 ## Configuration Management
 
-### Model Configuration (`config/models.json`)
-```json
-{
+### Model Configuration
+
+**Built-in Models** (always available):
+- **fast**: ViT-B-32 with laion2b_s34b_b79k (2GB memory, ~50ms inference)
+- **accurate**: ViT-L-14 with laion2b_s32b_b82k (6GB memory, ~200ms inference)
+
+**Custom Configuration via Environment Variables**:
+```bash
+MODEL_CONFIG_CUSTOM='{
   "models": {
-    "fast": {
-      "model_name": "ViT-B-32",
-      "pretrained": "laion2b_s34b_b79k",
-      "description": "Faster inference, good performance",
-      "memory_gb": 2.0,
-      "avg_inference_time_ms": 50,
-      "accuracy_score": 0.85,
-      "enabled": true
-    },
-    "accurate": {
-      "model_name": "ViT-L-14",
-      "pretrained": "laion2b_s32b_b82k",
-      "description": "Higher accuracy, slower inference",
-      "memory_gb": 6.0,
-      "avg_inference_time_ms": 200,
-      "accuracy_score": 0.92,
+    "custom_model": {
+      "model_name": "ViT-B-16",
+      "pretrained": "laion2b_s34b_b88k",
+      "description": "Custom model configuration",
+      "memory_gb": 3.0,
+      "avg_inference_time_ms": 100,
+      "accuracy_score": 0.88,
       "enabled": true
     }
   }
-}
+}'
 ```
 
 ### Environment Variables

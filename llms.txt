@@ -26,7 +26,7 @@ Production-ready vision-language similarity evaluation service using OpenCLIP mo
 
 **Supporting Components**:
 - Device management (CUDA/MPS/CPU auto-selection)
-- Dynamic model configuration from JSON/environment
+- Built-in model configurations with environment variable overrides
 - Prometheus metrics and OpenTelemetry tracing
 
 ### Deployment Options

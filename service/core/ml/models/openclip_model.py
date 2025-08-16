@@ -180,7 +180,7 @@ class OpenCLIPSimilarityModel(SimilarityModel):
                 # 5. Calculate cosine similarity
                 raw_cosine = torch.cosine_similarity(image_features, text_features, dim=-1).item()
                 # TODO: Profile if below implementation is faster because L2 normalization is already applied
-                # raw_cosine = torch.sum(image_features * text_features, dim=-1).item()
+                # TODO: raw_cosine = torch.sum(image_features * text_features, dim=-1).item()
 
                 processing_time = (time.time() - start_time) * 1000
                 return raw_cosine, processing_time

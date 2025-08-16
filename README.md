@@ -359,7 +359,7 @@ The service is built with a modular architecture supporting two deployment modes
   - **ML Utils** (`service/core/ml/utils/`): Image processing, metrics, and result building
 - **Evaluation API** (`service/evaluation/`): Evaluation endpoints, handlers, and schemas
 - **System API** (`service/system/`): Health checks and system management endpoints
-- **Configuration** (`config/`): Model configurations and service settings
+- **Dynamic Configuration**: Built-in model configurations with environment variable override support
 
 ## API Endpoints
 

@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-class MinimalOpenCLIPEvaluator(AbstractEvaluator):
+class OpenCLIPEvaluator(AbstractEvaluator):
     """
     OpenCLIP evaluator with consolidated single and batch evaluation logic.
     
@@ -281,12 +281,3 @@ class MinimalOpenCLIPEvaluator(AbstractEvaluator):
         
         return final_results
 
-    @classmethod
-    def create_fast_evaluator(cls, device: str | None = None, **kwargs) -> "MinimalOpenCLIPEvaluator":
-        """Create evaluator optimized for speed"""
-        return cls(model_config_name="fast", device=device, **kwargs)
-
-    @classmethod
-    def create_accurate_evaluator(cls, device: str | None = None, **kwargs) -> "MinimalOpenCLIPEvaluator":
-        """Create evaluator optimized for accuracy"""
-        return cls(model_config_name="accurate", device=device, **kwargs)
