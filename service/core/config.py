@@ -1,11 +1,12 @@
 from dataclasses import asdict, dataclass
 import json
-import logging
 import os
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from service.log import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

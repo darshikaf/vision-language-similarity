@@ -1,10 +1,10 @@
-import logging
 from typing import Any, Dict
 
+from service.log import get_logger
 from service.core.ml.models import SimilarityModelFactory
 from service.core.ml.models.base import SimilarityModel
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ModelManager:

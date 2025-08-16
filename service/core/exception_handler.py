@@ -1,18 +1,16 @@
 from functools import wraps
-import logging
 from typing import Callable, Any
 
 from fastapi import HTTPException, status
 
 from service.core.exceptions import ServiceError
+from service.log import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def common_exception_handler(func: Callable) -> Callable:
     """
-    Simplified common exception handler for FastAPI routes.
-    
     Maps common exceptions to appropriate HTTP status codes:
     - ServiceError: Uses the exception's http_status
     - ValueError: 400 Bad Request

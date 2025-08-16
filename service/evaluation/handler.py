@@ -1,12 +1,12 @@
 import asyncio
 from collections import defaultdict
-import logging
 import time
 
 from service.core import EvaluationResult, OpenCLIPEvaluator
 from service.core.config import model_registry
 from service.core.exceptions import ServiceError
 from service.core.observability import get_metrics_middleware
+from service.log import get_logger
 
 from .schema import (
     BatchEvaluationRequest,
@@ -16,7 +16,7 @@ from .schema import (
     HealthResponse,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EvaluationHandler:

@@ -1,9 +1,8 @@
-import logging
-
 from service.core.exceptions import ServiceError
+from service.log import get_logger
 from service.core.observability import get_metrics_middleware
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MetricsRecorder:

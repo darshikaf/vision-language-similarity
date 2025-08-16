@@ -1,6 +1,5 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import logging
 from pathlib import Path
 import time
 
@@ -13,8 +12,9 @@ from service.core.device_manager import DeviceManager
 from service.core.exceptions import ModelError, ValidationError
 from service.core.ml.models.base import SimilarityModel
 from service.core.observability import get_metrics_middleware
+from service.log import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OpenCLIPSimilarityModel(SimilarityModel):

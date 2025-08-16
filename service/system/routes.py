@@ -1,13 +1,13 @@
-import logging
 from typing import Any
 
 from fastapi import APIRouter
 
 from service.core.config import model_registry
 from service.core.exception_handler import common_exception_handler
+from service.log import get_logger
 from service.system.handler import get_model_info, get_system_status
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 SYSTEM_PREFIX = "/v1/system"
 

@@ -1,9 +1,3 @@
-"""
-OpenCLIP-based evaluator implementation.
-
-Handles both single and batch evaluations for OpenCLIP models.
-"""
-import logging
 import time
 from pathlib import Path
 from typing import Any, List
@@ -11,6 +5,7 @@ from typing import Any, List
 from PIL import Image
 
 from service.core.exceptions import ValidationError
+from service.log import get_logger
 from service.core.ml.utils.image_processor import ImageProcessor
 from service.core.ml.utils.metrics_recorder import MetricsRecorder
 from service.core.ml.utils.result_builder import ResultBuilder
@@ -19,9 +14,7 @@ from service.core.types import EvaluationResult
 from .base_evaluator import AbstractEvaluator
 from .model_manager import ModelManager
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OpenCLIPEvaluator(AbstractEvaluator):
