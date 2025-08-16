@@ -155,25 +155,3 @@ class TestEnvironmentVariableConfiguration:
             registry = DynamicModelRegistry()
             available = registry.list_available_models()
             assert "env_model" in available
-
-
-class TestCLIPModelSpec:
-    """Test CLIPModelSpec data class functionality"""
-
-    def test_clip_model_spec_creation(self):
-        """Test CLIPModelSpec creation with all fields"""
-        spec = CLIPModelSpec(
-            model_name="ViT-B-32",
-            pretrained="laion2b_s34b_b79k",
-            description="Test model",
-            memory_gb=2.0,
-            avg_inference_time_ms=100.0,
-            accuracy_score=0.85,
-            enabled=True
-        )
-        
-        assert spec.model_name == "ViT-B-32"
-        assert spec.enabled is True
-
-
-

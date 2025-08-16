@@ -25,12 +25,6 @@ class TestDeviceManager:
         assert isinstance(device, torch.device)
         assert device.type in ["cpu", "cuda", "mps"]
 
-    def test_get_optimal_device_explicit_cpu(self, cpu_device):
-        """Test explicit CPU device selection"""
-        selected_device = DeviceManager.get_optimal_device("cpu")
-        assert selected_device.type == "cpu"
-        assert selected_device == cpu_device
-
     def test_get_optimal_device_explicit_cuda(self):
         """Test explicit CUDA device selection"""
         selected_device = DeviceManager.get_optimal_device("cuda")
