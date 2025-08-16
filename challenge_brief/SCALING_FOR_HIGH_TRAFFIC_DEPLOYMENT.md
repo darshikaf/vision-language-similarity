@@ -30,7 +30,7 @@ The framework provides built-in request timeout mechanisms and supports implemen
 
 **Production-Grade Observability**
 
-Ray Serve integrates seamlessly with monitoring and observability platforms, providing detailed metrics on request rates, processing times, queue depths, and replica health. This is essential for operating at scale, as it enables proactive identification of performance bottlenecks and capacity planning.
+Ray Serve can integrate with monitoring and observability platforms, providing detailed metrics on request rates, processing times, queue depths, and replica health. This is essential for operating at scale, as it enables proactive identification of performance bottlenecks and capacity planning.
 
 ### Deployment Architecture for Massive Scale
 

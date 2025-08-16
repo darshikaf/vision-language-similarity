@@ -1,53 +1,38 @@
 # Vision-Language Similarity Service
 
-A high-performance vision-language similarity evaluation service built with OpenCLIP models. This service provides CLIP score calculations for comparing images with text descriptions, supporting both single and batch processing with comprehensive observability and advanced ML serving capabilities.
+Production-ready vision-language similarity evaluation service using OpenCLIP models. Calculates CLIP scores for image-text semantic similarity with FastAPI web service and optional Ray Serve deployment for ML-native scaling.
 
-## Features
+## Core Features
 
-- **CLIP Score Evaluation**: Calculate semantic similarity between images and text using OpenCLIP models
-- **Batch Processing**: Efficient batch evaluation with 5.29x speedup through concurrent async processing
-- **Multiple Model Configurations**: Support for different model profiles (fast: ViT-B-32, accurate: ViT-L-14)
-- **Dual Deployment Options**: Standard FastAPI service or advanced Ray Serve deployment with auto-scaling
-- **Comprehensive Observability**: Prometheus metrics, Grafana dashboards, Jaeger tracing
-- **Error Recovery**: Graceful handling of failed images in batch processing
-- **Performance Profiling**: Built-in profiling tools for optimization analysis
-- **Load Testing**: Integrated load testing with Locust
+- **CLIP Score Evaluation**: Semantic similarity scoring using OpenCLIP (ViT-B-32, ViT-L-14)
+- **Batch Processing**: 5.29x speedup through async concurrent processing
+- **Dual Deployment**: Standard FastAPI or Ray Serve with autoscaling
+- **Production Observability**: Prometheus metrics, Grafana dashboards, distributed tracing
+- **Error Recovery**: Graceful failure handling in batch operations
+- **Performance Tools**: Profiling, load testing, optimization analysis
 
 ## Architecture
 
 ### Core Components
 
 **Service Layer** (`service/`):
-- FastAPI application with REST API endpoints
-- Ray Serve integration for ML-native scaling
-- Health checks and metrics endpoints
+- FastAPI REST API with Ray Serve integration
+- Evaluation and system management endpoints
 
-**Core Logic** (`service/core/`):
-- `evaluator.py`: Main CLIP evaluation logic with async processing
-- `similarity_models/`: OpenCLIP model integration with mixed precision support
-- `image_loader.py`: Async image loading from URLs, files, and base64
-- `device_manager.py`: Automatic device selection (CUDA/MPS/CPU)
+**Core ML Engine** (`service/core/ml/`):
+- `engines/`: CLIP evaluation orchestration with async processing
+- `models/`: OpenCLIP model implementations with mixed precision
+- `utils/`: Image processing, metrics recording, result building
 
-**Model Management** (`service/config/`):
-- `model_configs.py`: Dynamic model registry supporting multiple configuration sources
-- `models.json`: Model specifications with performance characteristics
-
-**Observability** (`service/observability/`):
-- `prometheus_middleware.py`: Custom metrics collection for ML workloads
+**Supporting Components**:
+- Device management (CUDA/MPS/CPU auto-selection)
+- Built-in model configurations with environment variable overrides
+- Prometheus metrics and OpenTelemetry tracing
 
 ### Deployment Options
 
-**Standard FastAPI Service**:
-- Fast development iteration
-- Simple container deployment
-- Standard horizontal scaling
-
-**Ray Serve Deployment**:
-- ML-native autoscaling with request-aware scaling
-- Intelligent traffic management and backpressure handling
-- A/B testing and canary deployments
-- Multi-model serving with traffic splitting
-- Advanced fault tolerance and recovery
+**Standard FastAPI**: Fast development, simple container deployment
+**Ray Serve**: ML-native autoscaling, intelligent traffic management, A/B testing
 
 ## API Endpoints
 
@@ -57,33 +42,30 @@ A high-performance vision-language similarity evaluation service built with Open
 - `GET /evaluator/metrics`: Prometheus metrics
 - `GET /evaluator/docs`: Interactive API documentation
 
-## Performance Characteristics
+## Performance
 
-- **Single Evaluation**: 172ms average per image (ViT-B-32)
-- **Batch Processing**: 5.29x speedup through concurrent async processing
-- **Memory Usage**: 2.5-3GB for model weights, scales linearly with concurrent requests
-- **Throughput**: Scales from single requests to hundreds of millions daily with Ray Serve
+- **Latency**: 172ms per image (ViT-B-32)
+- **Batch Speedup**: 5.29x through async concurrency
+- **Memory**: 2.5-3GB base + 50-100MB per concurrent request
+- **Scaling**: Single requests to hundreds of millions daily
 
-## Key Technologies
+## Technologies
 
-- **ML Framework**: PyTorch with OpenCLIP models
-- **Web Framework**: FastAPI with async/await patterns
-- **ML Serving**: Ray Serve for hyperscale deployment
-- **Observability**: Prometheus, Grafana, Jaeger, OpenTelemetry
-- **Testing**: pytest with comprehensive unit and integration tests
-- **Development**: Docker, Make, ruff for code quality
+- **ML**: PyTorch, OpenCLIP, mixed precision inference
+- **Web**: FastAPI async/await, Ray Serve
+- **Observability**: Prometheus, Grafana, OpenTelemetry, Jaeger
+- **Development**: Docker, pytest, ruff, Make
 
-## Development Setup
+## Quick Start
 
-1. Clone repository and run `make dev-setup`
-2. Start service with `make run-local` or `make run-local-ray`
-3. Run tests with `make run-unit-test-suite-local`
-4. Format code with `make run-style-inplace-local`
-
-## Recent Performance Optimizations
-
-The service underwent significant performance optimization, resolving a regression where batch processing was only 1.3x faster than single evaluation. The solution involved reverting from model grouping (which artificially serialized requests) back to true concurrent processing using `asyncio.gather()`, achieving the current 5.29x speedup.
+```bash
+make dev-setup                    # Setup environment
+make run-local                    # Start FastAPI service
+make run-local-ray               # Start Ray Serve
+make run-local-otel              # Start with observability stack
+make run-unit-test-suite-local   # Run tests
+```
 
 ## CLI Tool
 
-Includes `app/evaluation_cli.py` for batch evaluation of CSV datasets with performance comparison capabilities between single and batch processing methods.
+`cli/evaluation_cli.py` - Batch CSV evaluation with performance comparison between single and batch processing modes.

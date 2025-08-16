@@ -1,13 +1,6 @@
-"""
-OpenCLIP-based evaluator implementation.
-
-Consolidated implementation that handles both single and batch evaluations
-for OpenCLIP models with clear, readable code structure.
-"""
-import logging
-import time
 from pathlib import Path
-from typing import Any, List
+import time
+from typing import Any
 
 from PIL import Image
 
@@ -16,22 +9,19 @@ from service.core.ml.utils.image_processor import ImageProcessor
 from service.core.ml.utils.metrics_recorder import MetricsRecorder
 from service.core.ml.utils.result_builder import ResultBuilder
 from service.core.types import EvaluationResult
+from service.log import get_logger
 
 from .base_evaluator import AbstractEvaluator
 from .model_manager import ModelManager
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
-class MinimalOpenCLIPEvaluator(AbstractEvaluator):
+class OpenCLIPEvaluator(AbstractEvaluator):
     """
-    OpenCLIP evaluator with consolidated single and batch evaluation logic.
-    
-    This implementation provides a clean, readable structure while maintaining
-    all the functionality of the original evaluator. All evaluation logic
-    is contained in a single class for easy understanding and maintenance.
+    OpenCLIP evaluator for single and batch evaluation operations.
+
+    Evaluates image-text similarity using OpenCLIP models.
     """
 
     def __init__(
@@ -63,11 +53,9 @@ class MinimalOpenCLIPEvaluator(AbstractEvaluator):
         self.image_processor = image_processor or ImageProcessor()
         self.metrics_recorder = metrics_recorder or MetricsRecorder()
         self.result_builder = result_builder or ResultBuilder()
-        
+
         # Pre-load model for property access
-        self.similarity_model = self.model_manager.get_model(
-            model_config_name, device=device, **model_kwargs
-        )
+        self.similarity_model = self.model_manager.get_model(model_config_name, device=device, **model_kwargs)
 
         logger.info(f"Initialized evaluator with {self.similarity_model.model_name} model ({model_config_name} config)")
 
@@ -82,11 +70,7 @@ class MinimalOpenCLIPEvaluator(AbstractEvaluator):
         return self.similarity_model.model_config
 
     async def evaluate_single(
-        self, 
-        image_input: str | Image.Image | Path, 
-        text_prompt: str, 
-        image_loader=None,
-        **kwargs: Any
+        self, image_input: str | Image.Image | Path, text_prompt: str, image_loader=None, **kwargs: Any
     ) -> EvaluationResult:
         """
         Evaluate single image-text pair.
@@ -101,16 +85,16 @@ class MinimalOpenCLIPEvaluator(AbstractEvaluator):
             EvaluationResult with evaluation outcome
         """
         start_time = time.time()
-        
+
         try:
             # Step 1: Load and prepare image
             image = await self.image_processor.load_image(image_input, image_loader)
             source_type = self.image_processor.determine_source_type(image_input)
-            
+
             # Step 2: Run model inference
             clip_score, inference_time = await self.similarity_model.compute_similarity(image, text_prompt)
             total_time = (time.time() - start_time) * 1000
-            
+
             # Step 3: Record success metrics
             await self.metrics_recorder.record_success_metrics(
                 clip_score,
@@ -121,35 +105,27 @@ class MinimalOpenCLIPEvaluator(AbstractEvaluator):
                 self.device.type,
                 self.similarity_model.model_name,
             )
-            
+
             # Step 4: Build success result
-            return self.result_builder.create_success_result(
-                image_input, text_prompt, clip_score, total_time
-            )
-            
+            return self.result_builder.create_success_result(image_input, text_prompt, clip_score, total_time)
+
         except Exception as error:
             logger.error(f"Single evaluation failed for {image_input}: {error}")
-            
+
             # Handle error case
             error_type = self.metrics_recorder.extract_error_type(error)
-            
+
             # Record error metrics
             self.metrics_recorder.record_error_metrics(
                 error, self.model_config_name, self.similarity_model.model_name, error_type
             )
-            
+
             # Build error result
-            return self.result_builder.create_failed_result(
-                image_input, text_prompt, str(error), error_type
-            )
+            return self.result_builder.create_failed_result(image_input, text_prompt, str(error), error_type)
 
     async def evaluate_batch(
-        self,
-        image_inputs: List[str | Image.Image | Path],
-        text_prompts: List[str],
-        batch_size: int = 8,
-        **kwargs: Any
-    ) -> List[EvaluationResult]:
+        self, image_inputs: list[str | Image.Image | Path], text_prompts: list[str], batch_size: int = 8, **kwargs: Any
+    ) -> list[EvaluationResult]:
         """
         Evaluate multiple image-text pairs with batch optimization.
 
@@ -164,56 +140,50 @@ class MinimalOpenCLIPEvaluator(AbstractEvaluator):
         """
         # Validation
         if len(image_inputs) != len(text_prompts):
-            raise ValidationError(
-                f"Mismatch: {len(image_inputs)} images vs {len(text_prompts)} prompts"
-            )
-        
+            raise ValidationError(f"Mismatch: {len(image_inputs)} images vs {len(text_prompts)} prompts")
+
         if not image_inputs:
             return []
-        
+
         start_time = time.time()
-        
+
         try:
             # Step 1: Load all images concurrently
             loaded_images = await self.image_processor.load_images_batch(image_inputs)
-            
+
             # Step 2: Separate successful and failed image loads
             valid_images, valid_prompts, valid_inputs, results = self._separate_valid_invalid_images(
                 loaded_images, text_prompts, image_inputs
             )
-            
+
             # Step 3: Process valid images with batch optimization
             if valid_images:
-                success_results = await self._process_valid_batch(
-                    valid_images, valid_prompts, valid_inputs, start_time
-                )
-                
+                success_results = await self._process_valid_batch(valid_images, valid_prompts, valid_inputs, start_time)
+
                 # Step 4: Merge results back in correct order
-                results = self._merge_results_in_order(
-                    loaded_images, results, success_results
-                )
-            
+                results = self._merge_results_in_order(loaded_images, results, success_results)
+
             return results
-            
+
         except Exception as error:
             logger.error(f"Batch evaluation failed: {error}")
             # Return error results for all inputs
             return self.result_builder.create_batch_error_results(
                 image_inputs, text_prompts, f"Batch evaluation failed: {error}"
             )
-    
+
     def _separate_valid_invalid_images(
         self,
-        loaded_images: List[Image.Image | Exception],
-        text_prompts: List[str],
-        image_inputs: List[str | Image.Image | Path],
-    ) -> tuple[List[Image.Image], List[str], List[str | Image.Image | Path], List[EvaluationResult]]:
+        loaded_images: list[Image.Image | Exception],
+        text_prompts: list[str],
+        image_inputs: list[str | Image.Image | Path],
+    ) -> tuple[list[Image.Image], list[str], list[str | Image.Image | Path], list[EvaluationResult]]:
         """Separate successfully loaded images from failed ones."""
         valid_images = []
         valid_prompts = []
         valid_inputs = []
         results = []
-        
+
         for i, (image_result, prompt) in enumerate(zip(loaded_images, text_prompts, strict=False)):
             if isinstance(image_result, Exception):
                 # Create failed result for image loading error
@@ -225,52 +195,48 @@ class MinimalOpenCLIPEvaluator(AbstractEvaluator):
                 valid_images.append(image_result)
                 valid_prompts.append(prompt)
                 valid_inputs.append(image_inputs[i])
-        
+
         return valid_images, valid_prompts, valid_inputs, results
-    
+
     async def _process_valid_batch(
         self,
-        valid_images: List[Image.Image],
-        valid_prompts: List[str],
-        valid_inputs: List[str | Image.Image | Path],
+        valid_images: list[Image.Image],
+        valid_prompts: list[str],
+        valid_inputs: list[str | Image.Image | Path],
         start_time: float,
-    ) -> List[EvaluationResult]:
+    ) -> list[EvaluationResult]:
         """Process batch of valid images."""
         try:
             # Native batch processing
             clip_scores, inference_time = await self.similarity_model.compute_batch_similarity(
                 valid_images, valid_prompts
             )
-            
+
             # Calculate average time per item
             avg_time_per_item = ((time.time() - start_time) * 1000) / len(valid_images)
-            
+
             # Create success results
-            return self.result_builder.create_batch_results(
-                valid_inputs, valid_prompts, clip_scores, avg_time_per_item
-            )
-            
+            return self.result_builder.create_batch_results(valid_inputs, valid_prompts, clip_scores, avg_time_per_item)
+
         except Exception as batch_error:
             logger.error(f"Batch inference failed: {batch_error}")
             # Create error results for all valid images
             return [
-                self.result_builder.create_failed_result(
-                    image_input, prompt, f"Batch inference failed: {batch_error}"
-                )
+                self.result_builder.create_failed_result(image_input, prompt, f"Batch inference failed: {batch_error}")
                 for image_input, prompt in zip(valid_inputs, valid_prompts, strict=False)
             ]
-    
+
     def _merge_results_in_order(
         self,
-        loaded_images: List[Image.Image | Exception],
-        failed_results: List[EvaluationResult],
-        success_results: List[EvaluationResult],
-    ) -> List[EvaluationResult]:
+        loaded_images: list[Image.Image | Exception],
+        failed_results: list[EvaluationResult],
+        success_results: list[EvaluationResult],
+    ) -> list[EvaluationResult]:
         """Merge success and failed results back in original order."""
         final_results = []
         success_idx = 0
         failed_idx = 0
-        
+
         for image_result in loaded_images:
             if isinstance(image_result, Exception):
                 final_results.append(failed_results[failed_idx])
@@ -278,15 +244,5 @@ class MinimalOpenCLIPEvaluator(AbstractEvaluator):
             else:
                 final_results.append(success_results[success_idx])
                 success_idx += 1
-        
+
         return final_results
-
-    @classmethod
-    def create_fast_evaluator(cls, device: str | None = None, **kwargs) -> "MinimalOpenCLIPEvaluator":
-        """Create evaluator optimized for speed"""
-        return cls(model_config_name="fast", device=device, **kwargs)
-
-    @classmethod
-    def create_accurate_evaluator(cls, device: str | None = None, **kwargs) -> "MinimalOpenCLIPEvaluator":
-        """Create evaluator optimized for accuracy"""
-        return cls(model_config_name="accurate", device=device, **kwargs)

@@ -48,17 +48,6 @@ class TestImageLoader:
         """Test URL detection"""
         assert ImageLoader._is_url(input_str) == is_url
 
-    def test_load_local_image_success(self, image_loader, sample_image_path):
-        """Test loading local image file successfully"""
-        loaded_image = image_loader.load_image_sync(sample_image_path)
-        assert isinstance(loaded_image, Image.Image)
-        assert loaded_image.mode == 'RGB'
-        assert loaded_image.size == (50, 50)
-
-    def test_load_nonexistent_file_error(self, image_loader):
-        """Test error handling for non-existent files"""
-        with pytest.raises(ImageProcessingError, match="Failed to load image from file"):
-            image_loader.load_image_sync("non_existent_file.jpg")
 
     @pytest.mark.asyncio
     async def test_load_local_image_async_success(self, image_loader, sample_image_path):
@@ -123,13 +112,14 @@ class TestImageLoaderImageProcessing:
         ('L', 'RGB'),
         ('RGB', 'RGB')
     ])
-    def test_image_mode_conversion(self, image_loader, tmp_path, mode, expected_mode):
+    @pytest.mark.asyncio
+    async def test_image_mode_conversion(self, image_loader, tmp_path, mode, expected_mode):
         """Test images are converted to RGB mode"""
         image = Image.new(mode, (50, 50), color=128 if mode == 'L' else (255, 0, 0, 128) if mode == 'RGBA' else 'red')
         image_path = tmp_path / f"test_{mode.lower()}.png"
         image.save(image_path)
         
-        loaded_image = image_loader.load_image_sync(str(image_path))
+        loaded_image = await image_loader.load_image(str(image_path))
         assert loaded_image.mode == expected_mode
 
 

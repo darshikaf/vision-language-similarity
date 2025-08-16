@@ -8,30 +8,37 @@ A high-performance vision-language similarity evaluation service built with Open
 vision-language-similarity/
 ├── service/                    # Main FastAPI service
 │   ├── core/                   # Core evaluation logic
-│   │   ├── evaluator.py        # Main CLIP evaluation with async processing
-│   │   ├── similarity_models/  # OpenCLIP model integration
-│   │   │   ├── base.py         # Abstract similarity model interface
-│   │   │   ├── factory.py      # Model factory for different configurations
-│   │   │   └── openclip_model.py # OpenCLIP implementation with mixed precision
-│   │   ├── image_loader.py     # Async image loading from multiple sources
-│   │   ├── device_manager.py   # Automatic device selection (CUDA/MPS/CPU)
-│   │   ├── models.py           # Data models and schemas
-│   │   └── exceptions.py       # Custom exception classes
-│   ├── evaluation/             # Evaluation API endpoints
-│   │   ├── handler.py          # Async evaluation request handler
-│   │   ├── routes.py           # FastAPI route definitions
+│   │   ├── ml/                 # Machine learning components
+│   │   │   ├── engines/        # Evaluation orchestration
+│   │   │   │   ├── base_evaluator.py    # Abstract evaluator interface
+│   │   │   │   ├── model_manager.py     # Model lifecycle management
+│   │   │   │   └── openclip_evaluator.py # OpenCLIP evaluation engine
+│   │   │   ├── models/         # Model implementations
+│   │   │   │   ├── base.py     # Abstract model interface
+│   │   │   │   ├── factory.py  # Model factory
+│   │   │   │   └── openclip_model.py # OpenCLIP implementation
+│   │   │   └── utils/          # ML utilities
+│   │   │       ├── image_loader.py     # Async image loading
+│   │   │       ├── image_processor.py  # Image preprocessing
+│   │   │       ├── metrics_recorder.py # Performance metrics
+│   │   │       └── result_builder.py   # Result construction
+│   │   ├── config.py           # Configuration management
+│   │   ├── device_manager.py   # Device selection (CUDA/MPS/CPU)
+│   │   ├── exceptions.py       # Custom exceptions
+│   │   ├── observability.py    # Monitoring and tracing
+│   │   ├── settings.py         # Application settings
+│   │   └── types.py            # Type definitions
+│   ├── evaluation/             # Evaluation API
+│   │   ├── handler.py          # Request handlers
+│   │   ├── routes.py           # API routes
 │   │   └── schema.py           # Request/response schemas
-│   ├── admin/                  # Admin API endpoints
-│   │   └── routes.py           # Model management endpoints
-│   ├── config/                 # Configuration management
-│   │   ├── model_configs.py    # Dynamic model registry
-│   │   └── settings.py         # Application settings
-│   ├── observability/          # Monitoring and metrics
-│   │   └── prometheus_middleware.py # Custom metrics for ML workloads
-│   ├── main.py                 # FastAPI application setup
-│   └── ray_main.py             # Ray Serve deployment entry point
-├── app/                        # CLI tools and utilities
-│   └── evaluation_cli.py       # Command-line evaluation tool
+│   ├── system/                 # System management API
+│   │   ├── handler.py          # System handlers
+│   │   └── routes.py           # System routes
+│   ├── main.py                 # FastAPI application
+│   └── ray_main.py             # Ray Serve deployment
+├── cli/                        # Command-line tools
+│   └── evaluation_cli.py       # Batch evaluation CLI
 ├── tests/                      # Comprehensive test suite
 │   ├── unit/                   # Unit tests for components
 │   ├── integration/            # End-to-end integration tests
@@ -45,8 +52,6 @@ vision-language-similarity/
 │   └── observability/          # Observability stack configuration
 ├── evaluator_profiler/         # Performance profiling tools
 ├── load_tests/                 # Load testing with Locust
-├── config/                     # Configuration files
-│   └── models.json             # Model specifications
 └── scripts/                    # Build and deployment scripts
 ```
 
@@ -65,10 +70,10 @@ vision-language-similarity/
 - **Error Isolation**: Failed images don't interrupt batch processing
 
 ### Model Management
-- **Dynamic Configuration**: Load model specs from files, environment variables, or defaults
+- **Built-in Configurations**: Default models (fast, accurate) always available
+- **Environment Override**: Custom models via `MODEL_CONFIG_*` environment variables
 - **Caching**: Models cached as singletons to avoid reloading overhead
-- **Multiple Sources**: Support for JSON files, environment variables, and built-in defaults
-- **Hot Reloading**: Runtime configuration updates without service restart
+- **Runtime Updates**: Environment-based configuration changes without rebuilds
 
 ### Async Image Loading
 - **Multiple Sources**: URLs, file paths, base64 data URIs, PIL Image objects
@@ -131,11 +136,13 @@ Response:
 }
 ```
 
-### Admin Endpoints
-- `GET /evaluator/v1/admin/models`: List available model configurations
-- `GET /evaluator/v1/admin/models/specs`: Get detailed model specifications
-- `GET /evaluator/v1/admin/models/{config_name}/info`: Get specific model information
-- `GET /evaluator/v1/admin/status`: Service status and health information
+### System Endpoints
+- `GET /v1/system/models`: List available model configurations
+- `GET /v1/system/models/specs`: Get detailed model specifications
+- `GET /v1/system/models/{config_name}/info`: Get specific model runtime information
+- `GET /v1/system/models/all`: Get all model configurations (including disabled)
+- `GET /v1/system/status`: Get system status and health information
+- `GET /evaluator/metrics`: Prometheus metrics endpoint
 
 ## Deployment Architectures
 
@@ -158,13 +165,14 @@ make run-local
 ### Ray Serve Deployment
 **Use Cases**: Production ML workloads, hyperscale deployments, advanced ML serving
 
-**Key Capabilities**:
-- **ML-Native Autoscaling**: Request-aware scaling based on queue depth and processing characteristics
-- **Intelligent Traffic Management**: Adaptive request routing and backpressure handling
-- **Multi-Model Serving**: Simultaneous deployment of multiple model versions with traffic splitting
-- **Advanced Deployment Patterns**: Blue-green deployments, canary releases, A/B testing
-- **Fault Tolerance**: Automatic replica recovery, circuit breaker patterns, graceful degradation
-- **Resource Optimization**: Model weight sharing, GPU memory pooling, dynamic resource allocation
+**Enterprise Production Capabilities**:
+- **End-to-End Fault Tolerance**: Automatic replica recovery, distributed failure isolation, and graceful degradation across the entire request pipeline
+- **Intelligent Load Shedding**: Dynamic request throttling based on system capacity, queue depth, and real-time performance metrics
+- **Request Queuing & Backpressure**: Adaptive queuing with automatic overflow handling, client backpressure signals, and queue depth monitoring
+- **ML-Native Autoscaling**: Request-aware scaling based on queue depth, processing characteristics, and predictive traffic patterns
+- **Circuit Breaker Pattern**: Automatic failure detection with exponential backoff, recovery probing, and cascading failure prevention  
+- **Multi-Model Serving**: Simultaneous deployment of multiple model versions with traffic splitting, A/B testing, and canary releases
+- **Resource Isolation & Optimization**: Memory and compute isolation between replicas, model weight sharing, GPU memory pooling
 
 **Ray Serve Configuration**:
 ```python
@@ -279,7 +287,7 @@ tests/
 │   ├── test_core_components.py     # Core logic testing
 │   ├── test_evaluation_handler.py  # Handler testing
 │   ├── test_evaluation_api.py      # API endpoint testing
-│   └── test_model_config_management.py # Configuration testing
+│   └── test_model_configs.py          # Model configuration testing
 ├── integration/                # End-to-end tests
 │   └── test_end_to_end_evaluation.py # Full workflow testing
 ├── fixtures/                   # Shared test fixtures
@@ -352,16 +360,16 @@ make load-test-ci  # Automated performance thresholds
 **Usage Examples**:
 ```bash
 # Basic evaluation
-python app/evaluation_cli.py dataset.csv
+python cli/evaluation_cli.py dataset.csv
 
 # Batch processing with custom batch size
-python app/evaluation_cli.py dataset.csv --batch --batch-size 32
+python cli/evaluation_cli.py dataset.csv --batch --batch-size 32
 
 # Performance comparison
-python app/evaluation_cli.py dataset.csv --compare
+python cli/evaluation_cli.py dataset.csv --compare
 
 # Custom service URL
-python app/evaluation_cli.py dataset.csv --service-url http://localhost:8000
+python cli/evaluation_cli.py dataset.csv --service-url http://localhost:8000
 ```
 
 **CSV Format**:
@@ -414,30 +422,27 @@ make clean-otel
 
 ## Configuration Management
 
-### Model Configuration (`config/models.json`)
-```json
-{
+### Model Configuration
+
+**Built-in Models** (always available):
+- **fast**: ViT-B-32 with laion2b_s34b_b79k (2GB memory, ~50ms inference)
+- **accurate**: ViT-L-14 with laion2b_s32b_b82k (6GB memory, ~200ms inference)
+
+**Custom Configuration via Environment Variables**:
+```bash
+MODEL_CONFIG_CUSTOM='{
   "models": {
-    "fast": {
-      "model_name": "ViT-B-32",
-      "pretrained": "laion2b_s34b_b79k",
-      "description": "Faster inference, good performance",
-      "memory_gb": 2.0,
-      "avg_inference_time_ms": 50,
-      "accuracy_score": 0.85,
-      "enabled": true
-    },
-    "accurate": {
-      "model_name": "ViT-L-14",
-      "pretrained": "laion2b_s32b_b82k",
-      "description": "Higher accuracy, slower inference",
-      "memory_gb": 6.0,
-      "avg_inference_time_ms": 200,
-      "accuracy_score": 0.92,
+    "custom_model": {
+      "model_name": "ViT-B-16",
+      "pretrained": "laion2b_s34b_b88k",
+      "description": "Custom model configuration",
+      "memory_gb": 3.0,
+      "avg_inference_time_ms": 100,
+      "accuracy_score": 0.88,
       "enabled": true
     }
   }
-}
+}'
 ```
 
 ### Environment Variables

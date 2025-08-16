@@ -2,7 +2,7 @@ from unittest.mock import patch, Mock, AsyncMock
 import pytest
 from PIL import Image
 
-from service.core.ml.engines.openclip_evaluator import MinimalOpenCLIPEvaluator
+from service.core.ml.engines.openclip_evaluator import OpenCLIPEvaluator
 from service.core.exceptions import ValidationError
 from service.core.config import CLIPModelSpec
 
@@ -53,8 +53,8 @@ def mock_clip_model_spec():
     )
 
 
-class TestMinimalOpenCLIPEvaluator:
-    """Test MinimalOpenCLIPEvaluator functionality"""
+class TestOpenCLIPEvaluator:
+    """Test OpenCLIPEvaluator functionality"""
 
     @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
     def test_evaluator_initialization_with_config_name(self, mock_create_model):
@@ -62,7 +62,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_similarity_model = Mock()
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         assert evaluator.similarity_model == mock_similarity_model
         mock_create_model.assert_called_once_with("fast", device=None)
@@ -74,7 +74,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_create_model.return_value = mock_similarity_model
         
         # Pass model_spec as a kwarg since evaluator passes **model_kwargs to factory
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="custom", model_spec=mock_clip_model_spec)
+        evaluator = OpenCLIPEvaluator(model_config_name="custom", model_spec=mock_clip_model_spec)
         
         assert evaluator.similarity_model == mock_similarity_model
         mock_create_model.assert_called_once_with("custom", device=None, model_spec=mock_clip_model_spec)
@@ -86,7 +86,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_create_model.return_value = mock_similarity_model
         
         # Evaluator should use default "fast" config
-        evaluator = MinimalOpenCLIPEvaluator()
+        evaluator = OpenCLIPEvaluator()
         
         assert evaluator.model_config_name == "fast"
         assert evaluator.similarity_model == mock_similarity_model
@@ -113,7 +113,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_metrics_recorder.record_success_metrics = AsyncMock()
         mock_metrics_recorder.enabled = False
         
-        evaluator = MinimalOpenCLIPEvaluator(
+        evaluator = OpenCLIPEvaluator(
             model_config_name="fast",
             image_processor=mock_image_processor,
             metrics_recorder=mock_metrics_recorder
@@ -145,7 +145,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_metrics_recorder.extract_error_type = Mock(return_value=None)
         mock_metrics_recorder.record_error_metrics = Mock()
         
-        evaluator = MinimalOpenCLIPEvaluator(
+        evaluator = OpenCLIPEvaluator(
             model_config_name="fast",
             image_processor=mock_image_processor,
             metrics_recorder=mock_metrics_recorder
@@ -179,7 +179,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_metrics_recorder.extract_error_type = Mock(return_value=None)
         mock_metrics_recorder.record_error_metrics = Mock()
         
-        evaluator = MinimalOpenCLIPEvaluator(
+        evaluator = OpenCLIPEvaluator(
             model_config_name="fast",
             image_processor=mock_image_processor,
             metrics_recorder=mock_metrics_recorder
@@ -200,7 +200,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_similarity_model.compute_batch_similarity = AsyncMock(return_value=([0.8, 0.7, 0.9], 45.0))  # (scores, inference_time)
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         results = await evaluator.evaluate_batch(sample_batch_images, sample_batch_prompts)
         
@@ -217,7 +217,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_similarity_model = Mock()
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         # Mismatched lengths: 3 images, 2 prompts
         mismatched_prompts = ["prompt1", "prompt2"]
@@ -232,7 +232,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_similarity_model = Mock()
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         results = await evaluator.evaluate_batch([], [])
         
@@ -247,7 +247,7 @@ class TestMinimalOpenCLIPEvaluator:
         mock_similarity_model.compute_batch_similarity = AsyncMock(return_value=([0.8, 0.7, 0.9], 45.0))  # (scores, inference_time)
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         results = await evaluator.evaluate_batch(sample_batch_images, sample_batch_prompts, batch_size=2)
         
@@ -257,7 +257,7 @@ class TestMinimalOpenCLIPEvaluator:
             assert result.error is None
 
 
-class TestMinimalOpenCLIPEvaluatorEdgeCases:
+class TestOpenCLIPEvaluatorEdgeCases:
     """Test evaluator edge cases and error scenarios"""
 
     @pytest.mark.parametrize("model_config", ["fast", "accurate"])
@@ -267,7 +267,7 @@ class TestMinimalOpenCLIPEvaluatorEdgeCases:
         mock_similarity_model = Mock()
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name=model_config)
+        evaluator = OpenCLIPEvaluator(model_config_name=model_config)
         
         assert evaluator.similarity_model == mock_similarity_model
         mock_create_model.assert_called_once_with(model_config, device=None)
@@ -283,7 +283,7 @@ class TestMinimalOpenCLIPEvaluatorEdgeCases:
         ])
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         images = [Image.new('RGB', (50, 50), 'red') for _ in range(2)]
         prompts = ["prompt1", "prompt2"]
@@ -304,7 +304,7 @@ class TestMinimalOpenCLIPEvaluatorEdgeCases:
         mock_similarity_model.compute_similarity = AsyncMock(return_value=(0.75, 50.0))  # (score, inference_time)
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         result = await evaluator.evaluate_single(sample_image, "test prompt")
         
@@ -326,13 +326,13 @@ class TestMinimalOpenCLIPEvaluatorEdgeCases:
             mock_similarity_model.compute_similarity = AsyncMock(return_value=(similarity, 50.0))  # (score, inference_time)
             mock_create_model.return_value = mock_similarity_model
             
-            evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+            evaluator = OpenCLIPEvaluator(model_config_name="fast")
             result = await evaluator.evaluate_single(sample_image, "test prompt")
             
             assert result.clip_score == expected_score
 
 
-class TestMinimalOpenCLIPEvaluatorIntegration:
+class TestOpenCLIPEvaluatorIntegration:
     """Test evaluator integration scenarios"""
 
     @pytest.mark.asyncio
@@ -344,7 +344,7 @@ class TestMinimalOpenCLIPEvaluatorIntegration:
         mock_similarity_model.compute_batch_similarity = AsyncMock(return_value=([0.7, 0.9], 45.0))  # (scores, inference_time)
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         # Single evaluation
         single_result = await evaluator.evaluate_single(sample_image, "prompt")
@@ -366,7 +366,7 @@ class TestMinimalOpenCLIPEvaluatorIntegration:
         mock_similarity_model.compute_similarity = AsyncMock(return_value=(0.8, 50.0))  # (score, inference_time)
         mock_create_model.return_value = mock_similarity_model
         
-        evaluator = MinimalOpenCLIPEvaluator(model_config_name="fast")
+        evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         # Run multiple evaluations concurrently
         tasks = [

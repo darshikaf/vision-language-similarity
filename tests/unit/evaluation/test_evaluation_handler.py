@@ -89,7 +89,7 @@ class TestEvaluationHandler:
             await handler.evaluate_single(request)
 
     @pytest.mark.asyncio
-    @patch('service.evaluation.handler.MinimalOpenCLIPEvaluator')
+    @patch('service.evaluation.handler.OpenCLIPEvaluator')
     async def test_evaluate_single_success(self, mock_evaluator_class, handler, sample_evaluation_request, mock_evaluation_result):
         """Test successful single evaluation"""
         mock_evaluator = Mock()
@@ -108,7 +108,7 @@ class TestEvaluationHandler:
         mock_evaluator_class.assert_called_once_with(model_config_name="fast")
 
     @pytest.mark.asyncio
-    @patch('service.evaluation.handler.MinimalOpenCLIPEvaluator')
+    @patch('service.evaluation.handler.OpenCLIPEvaluator')
     async def test_evaluate_single_with_error(self, mock_evaluator_class, handler, sample_evaluation_request, mock_evaluation_result_with_error):
         """Test single evaluation that encounters an error"""
         mock_evaluator = Mock()
@@ -122,7 +122,7 @@ class TestEvaluationHandler:
         assert response.processing_time_ms == 50.0
 
     @pytest.mark.asyncio
-    @patch('service.evaluation.handler.MinimalOpenCLIPEvaluator')
+    @patch('service.evaluation.handler.OpenCLIPEvaluator')
     async def test_evaluate_batch_success(self, mock_evaluator_class, handler, sample_batch_request):
         """Test successful batch evaluation"""
         mock_evaluator = Mock()
@@ -156,7 +156,7 @@ class TestEvaluationHandler:
         assert response.results[1].clip_score == 82.1
 
     @pytest.mark.asyncio
-    @patch('service.evaluation.handler.MinimalOpenCLIPEvaluator')
+    @patch('service.evaluation.handler.OpenCLIPEvaluator')
     async def test_evaluate_batch_with_mixed_results(self, mock_evaluator_class, handler, sample_batch_request):
         """Test batch evaluation with some successes and failures"""
         mock_evaluator = Mock()
@@ -188,7 +188,7 @@ class TestEvaluationHandler:
         assert response.results[1].error == "Image not found"
 
     @pytest.mark.asyncio
-    @patch('service.evaluation.handler.MinimalOpenCLIPEvaluator')
+    @patch('service.evaluation.handler.OpenCLIPEvaluator')
     async def test_health_check_healthy(self, mock_evaluator_class, handler):
         """Test health check when service is healthy"""
         mock_evaluator = Mock()
@@ -206,7 +206,7 @@ class TestEvaluationHandler:
         assert "accurate" in response.available_configs
 
     @pytest.mark.asyncio
-    @patch('service.evaluation.handler.MinimalOpenCLIPEvaluator')
+    @patch('service.evaluation.handler.OpenCLIPEvaluator')
     async def test_health_check_model_loading_error(self, mock_evaluator_class, handler):
         """Test health check when model loading fails"""  
         mock_evaluator_class.side_effect = Exception("Model loading failed")
@@ -229,7 +229,7 @@ class TestEvaluationHandler:
     @pytest.mark.asyncio
     async def test_handler_graceful_error_handling(self, handler):
         """Test handler handles errors gracefully"""
-        with patch('service.evaluation.handler.MinimalOpenCLIPEvaluator') as mock_evaluator_class:
+        with patch('service.evaluation.handler.OpenCLIPEvaluator') as mock_evaluator_class:
             mock_evaluator_class.side_effect = ServiceError("Critical model error", 503)
             
             request = EvaluationRequest(
@@ -266,7 +266,7 @@ class TestEvaluationHandlerErrorScenarios:
     @pytest.mark.asyncio
     async def test_evaluate_single_service_error_propagation(self, handler):
         """Test that ServiceErrors are properly propagated"""
-        with patch('service.evaluation.handler.MinimalOpenCLIPEvaluator') as mock_evaluator_class:
+        with patch('service.evaluation.handler.OpenCLIPEvaluator') as mock_evaluator_class:
             mock_evaluator_class.side_effect = ServiceError("Model unavailable", 503)
             
             request = EvaluationRequest(
@@ -283,7 +283,7 @@ class TestEvaluationHandlerErrorScenarios:
     @pytest.mark.asyncio  
     async def test_evaluate_batch_partial_failure_handling(self, handler):
         """Test batch evaluation handles partial failures correctly"""
-        with patch('service.evaluation.handler.MinimalOpenCLIPEvaluator') as mock_evaluator_class:
+        with patch('service.evaluation.handler.OpenCLIPEvaluator') as mock_evaluator_class:
             mock_evaluator = Mock()
             
             # Create results with mixed success/failure
@@ -325,7 +325,7 @@ class TestEvaluationHandlerErrorScenarios:
     @pytest.mark.asyncio
     async def test_health_check_exception_handling(self, handler):
         """Test health check gracefully handles exceptions"""  
-        with patch('service.evaluation.handler.MinimalOpenCLIPEvaluator') as mock_evaluator_class:
+        with patch('service.evaluation.handler.OpenCLIPEvaluator') as mock_evaluator_class:
             mock_evaluator_class.side_effect = RuntimeError("Unexpected model error")
             
             response = await handler.health_check()

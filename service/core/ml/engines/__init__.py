@@ -2,10 +2,10 @@
 
 from .base_evaluator import AbstractEvaluator
 from .model_manager import ModelManager
-from .openclip_evaluator import MinimalOpenCLIPEvaluator
+from .openclip_evaluator import OpenCLIPEvaluator
 
 __all__ = [
     "AbstractEvaluator",
-    "MinimalOpenCLIPEvaluator", 
+    "OpenCLIPEvaluator",
     "ModelManager",
 ]

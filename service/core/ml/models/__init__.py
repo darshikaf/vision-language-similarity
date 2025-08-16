@@ -6,6 +6,6 @@ from .openclip_model import OpenCLIPSimilarityModel
 
 __all__ = [
     "SimilarityModel",
-    "SimilarityModelFactory", 
+    "SimilarityModelFactory",
     "OpenCLIPSimilarityModel",
 ]

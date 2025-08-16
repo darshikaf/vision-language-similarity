@@ -1,18 +1,13 @@
-#!/usr/bin/env python3
-"""
-Ray Serve main entry point for vision-language similarity service.
-This creates a fully contained Ray Serve deployment with the FastAPI app.
-"""
-
 import contextlib
-import logging
 
 import ray
 from ray import serve
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+from service.log import get_logger, setup_logging
+
+# Setup logging
+setup_logging()
+logger = get_logger(__name__)
 
 
 # Import FastAPI app at module level to avoid circular imports
@@ -39,7 +34,7 @@ class VisionSimilarityService:
 
     def __init__(self):
         """Initialize the similarity service deployment"""
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         self.logger.info("Initializing Ray Serve VisionSimilarityService")
 
 

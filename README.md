@@ -1,10 +1,13 @@
 # Vision-Language Similarity Service
 
-A high-performance vision-language similarity evaluation service built with OpenCLIP models. This service provides CLIP score calculations for comparing images with text descriptions, supporting both single and batch processing with comprehensive observability, profiling, and advanced ML serving capabilities.
+A vision-language similarity evaluation service built with OpenCLIP models. This service provides CLIP score calculations for comparing images with text descriptions, supporting both single and batch processing.
+
+**Documentation**: See `challenge_brief/` directory for detailed design decisions, scaling strategies, and similarity metric performance analysis.
 
 ## Table of Contents
 
 - [Features](#features)
+- [Performance Characteristics on Apple M1](#performance-characteristics-on-apple-m1)
 - [Quick Start](#quick-start)
   - [Prerequisites](#prerequisites)
   - [Development Setup](#development-setup)
@@ -12,7 +15,6 @@ A high-performance vision-language similarity evaluation service built with Open
 - [API Usage](#api-usage)
   - [Single Image Evaluation](#single-image-evaluation)
   - [Batch Evaluation](#batch-evaluation)
-  - [Health Check](#health-check)
 - [Command Line Interface](#command-line-interface)
   - [Basic Usage](#basic-usage)
   - [CSV File Format](#csv-file-format)
@@ -22,26 +24,15 @@ A high-performance vision-language similarity evaluation service built with Open
 - [Development](#development)
   - [Running Tests](#running-tests)
   - [Code Quality](#code-quality)
-  - [Observability Stack](#observability-stack)
   - [Load Testing](#load-testing)
-  - [Performance Profiling](#performance-profiling)
-- [Docker Deployment](#docker-deployment)
+- [Architecture](#architecture)
   - [Standard FastAPI Service](#standard-fastapi-service)
   - [Ray Serve Deployment](#ray-serve-deployment)
-- [Architecture](#architecture)
-  - [Standard FastAPI Service](#standard-fastapi-service-1)
-  - [Ray Serve Deployment](#ray-serve-deployment-1)
   - [Core Components](#core-components)
 - [API Endpoints](#api-endpoints)
 - [CLIP Score Calculation](#clip-score-calculation)
-- [Contributing](#contributing)
-- [Performance Characteristics](#performance-characteristics)
-- [Troubleshooting](#troubleshooting)
-  - [Common Issues](#common-issues)
-  - [Debug Mode](#debug-mode)
-  - [Performance Optimization](#performance-optimization)
 - [Future Improvements](#future-improvements)
-  - [Performance Optimization](#performance-optimization-1)
+  - [Performance Optimization](#performance-optimization)
   - [Scalability & Production](#scalability--production)
   - [Monitoring & Observability](#monitoring--observability)
   - [Testing & Quality](#testing--quality)
@@ -54,9 +45,15 @@ A high-performance vision-language similarity evaluation service built with Open
 - **Multiple Model Configurations**: Support for different model profiles (fast vs accurate) with dynamic configuration
 - **Dual Deployment Options**: Standard FastAPI service or advanced Ray Serve deployment with auto-scaling
 - **Comprehensive Observability**: Prometheus metrics, Grafana dashboards, Jaeger tracing, and structured logging
-- **Error Recovery**: Graceful handling of failed images in batch processing without stopping entire operations
-- **Performance Profiling**: Built-in profiling tools for optimization and performance analysis
 - **Load Testing**: Integrated load testing with Locust for performance validation
+
+## Performance Characteristics on Apple M1
+
+- **Single Evaluation**: 4.2 images/s depending on model
+- **Batch Processing**: 21.1 image/s
+- **Memory Usage**: 2-8GB depending on model configuration
+- **Throughput**: 100-500 requests/second (model dependent)
+- **Error Recovery**: Failed images don't interrupt batch processing
 
 ## Quick Start
 
@@ -71,29 +68,48 @@ A high-performance vision-language similarity evaluation service built with Open
 __IMPORTANT__: Dev set up is only supported for `ARM64/M1`.
 
 1. **Clone and setup the environment:**
-   ```bash
-   git clone <repository-url>
-   cd vision-language-similarity
-   make dev-setup
-   ```
+```bash
+git clone <repository-url>
+cd vision-language-similarity
+make dev-setup
+```
 
 2. **Run the service locally:**
-   ```bash
-   # Standard FastAPI service
-   make run-local
-   
-   # Or run directly with Python
-   python service/run_service.py
-   ```
+
+#### Standard FastAPI Service
+
+```bash
+# Build images
+make build-base
+make build-app
+
+# Run service
+make run-local-otel
+
+# Or run directly on Python
+uvicorn service.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### Ray Serve Deployment
+
+```bash
+# Build Ray images
+make build-ray-base  
+make build-ray
+
+# Deploy Ray Serve
+make run-local-ray
+```
 
 3. **Access the service:**
-   - API Documentation: http://localhost:8000/evaluator/docs
-   - Health Check: http://localhost:8000/evaluator/health
-   - Metrics: http://localhost:8000/evaluator/metrics
+- API Documentation: http://localhost:8000/evaluator/docs
+- Health Check: http://localhost:8000/evaluator/health
+- Metrics: http://localhost:8000/evaluator/metrics
+- Grafana Dashboard: http://localhost:3000/d/vision-language-similarity/vision-language-similarity-service
 
 ### Ray Serve Deployment (Advanced ML Serving)
 
-For production ML workloads requiring auto-scaling and advanced deployment features:
+For production ML workloads requiring enterprise-grade reliability and scaling:
 
 ```bash
 # Build Ray Serve images
@@ -104,8 +120,20 @@ make build-ray
 make run-local-ray
 ```
 
+**Advanced Production Features:**
+
+- **End-to-End Fault Tolerance**: Automatic replica recovery, distributed failure isolation, and graceful degradation
+- **Intelligent Load Shedding**: Dynamic request throttling based on system capacity and queue depth
+- **Request Queuing & Backpressure**: Adaptive queuing with automatic overflow handling and client backpressure
+- **Auto-scaling**: ML-aware scaling based on request patterns, queue depth, and processing characteristics
+- **Circuit Breaker Pattern**: Automatic failure detection with exponential backoff and recovery
+- **Multi-Model Serving**: Traffic splitting for A/B testing and canary deployments
+- **Resource Isolation**: Memory and compute isolation between model replicas
+
+**Monitoring & Control:**
 - Ray Dashboard: http://localhost:8265
 - API Documentation: http://localhost:8000/evaluator/docs
+- Replica health monitoring and automatic replacement
 
 ## API Usage
 
@@ -156,20 +184,6 @@ curl -X POST "http://localhost:8000/evaluator/v1/evaluation/batch" \
      }'
 ```
 
-### Health Check
-
-```bash
-curl "http://localhost:8000/evaluator/health"
-```
-
-**Response:**
-```json
-{
-  "status": "available",
-  "service": "vision_language_similarity_evaluator"
-}
-```
-
 ## Command Line Interface
 
 The repository includes a convenient CLI tool for batch evaluation of images with CLIP scores:
@@ -178,7 +192,7 @@ The repository includes a convenient CLI tool for batch evaluation of images wit
 
 ```bash
 # Evaluate images from a CSV file
-cd app
+cd cli
 python evaluation_cli.py path/to/your_dataset.csv
 
 # Use batch evaluation (faster for multiple images)
@@ -223,7 +237,7 @@ The CLI tool will:
 ### Example Run
 
 ```bash
-➜ python app/evaluation_cli.py tests/data/samples/challenge_set.csv --compare
+➜ python cli/evaluation_cli.py tests/data/samples/challenge_set.csv --compare
 Processing: tests/data/samples/challenge_set.csv
 Data directory: tests/data/samples
 Loaded 51 rows
@@ -260,8 +274,6 @@ make run-unit-test-suite
 # Run integration tests in Docker
 make run-integration-test-suite
 
-# Run specific test files
-python -m pytest tests/test_evaluator.py -v
 ```
 
 ### Code Quality
@@ -269,23 +281,6 @@ python -m pytest tests/test_evaluator.py -v
 ```bash
 # Format code with ruff
 make run-style-inplace-local
-```
-
-### Observability Stack
-
-Start the full observability stack for monitoring and debugging:
-
-```bash
-# Start observability services
-make run-local-otel
-
-# Access dashboards
-# Grafana: http://localhost:3000 (admin/grafana) 
-# Grafana Dashboard: http://localhost:3000/d/vision-language-similarity/vision-language-similarity-service 
-# Prometheus: http://localhost:9090
-
-# Clean up
-make clean-otel
 ```
 
 ### Load Testing
@@ -302,41 +297,6 @@ make load-test-light
 make load-test-ci
 ```
 
-### Performance Profiling
-
-```bash
-# Run profiling analysis
-cd evaluator_profiler
-python run_profile.py
-
-# Compare performance between runs
-python profile_compare.py
-```
-
-## Docker Deployment
-
-### Standard FastAPI Service
-
-```bash
-# Build images
-make build-base
-make build-app
-
-# Run service
-make run-local-otel
-```
-
-### Ray Serve Deployment
-
-```bash
-# Build Ray images
-make build-ray-base  
-make build-ray
-
-# Deploy Ray Serve
-make run-local-ray
-```
-
 ## Architecture
 
 The service is built with a modular architecture supporting two deployment modes:
@@ -347,18 +307,24 @@ The service is built with a modular architecture supporting two deployment modes
 - **Resource Efficient**: Lower resource overhead
 
 ### Ray Serve Deployment  
-- **Auto-scaling**: Automatic replica scaling based on traffic
-- **Load Balancing**: Intelligent request distribution
-- **A/B Testing**: Support for model variants and experiments
-- **Production Features**: Blue-green deployments, health monitoring
+- **End-to-End Fault Tolerance**: Automatic replica recovery with distributed failure isolation
+- **Intelligent Load Shedding**: Dynamic request throttling based on system capacity
+- **Request Queuing & Backpressure**: Adaptive queuing with overflow handling
+- **Auto-scaling**: ML-aware scaling based on request patterns and processing characteristics
+- **Circuit Breaker Pattern**: Automatic failure detection with exponential backoff
+- **Multi-Model Serving**: Traffic splitting for A/B testing and canary deployments
+- **Resource Isolation**: Memory and compute isolation between replicas
 
 ### Core Components
 
 - **Service Layer** (`service/`): FastAPI application with REST API endpoints
-- **Core Logic** (`service/core/`): CLIP evaluation, device management, image loading
-- **Model Management** (`service/model_management/`): Dynamic model configuration and loading
-- **Observability** (`service/observability/`): Prometheus metrics and monitoring
-- **Configuration** (`config/`): Model configurations and service settings
+- **Core Logic** (`service/core/`): CLIP evaluation, device management, configuration
+  - **ML Engine** (`service/core/ml/`): OpenCLIP model integration and evaluation engines
+  - **ML Models** (`service/core/ml/models/`): Model abstractions and OpenCLIP implementations
+  - **ML Utils** (`service/core/ml/utils/`): Image processing, metrics, and result building
+- **Evaluation API** (`service/evaluation/`): Evaluation endpoints, handlers, and schemas
+- **System API** (`service/system/`): Health checks and system management endpoints
+- **Dynamic Configuration**: Built-in model configurations with environment variable override support
 
 ## API Endpoints
 
@@ -369,64 +335,13 @@ The service is built with a modular architecture supporting two deployment modes
 | `/evaluator/v1/evaluation/single` | POST | Single image-text evaluation |
 | `/evaluator/v1/evaluation/batch` | POST | Batch image-text evaluation |
 | `/evaluator/metrics` | GET | Prometheus metrics |
-| `/evaluator/admin/models` | GET | List available models |
-| `/evaluator/admin/models/{model_name}` | PUT | Update model configuration |
+| `/system/health` | GET | System health check |
 
 ## CLIP Score Calculation
 
 The service uses the standard CLIP score formula:
-```
+```python
 CLIP Score = max(100 * cosine_similarity(image_embedding, text_embedding), 0)
-```
-
-Where embeddings are L2-normalized before similarity calculation.
-
-## Contributing
-
-1. **Setup Development Environment:**
-   ```bash
-   make dev-setup
-   ```
-
-2. **Run Tests Before Committing:**
-   ```bash
-   pytest tests/
-   ```
-
-3. **Test Your Changes:**
-   ```bash
-   # Test the service locally
-   make run-local-otel
-   
-   # Run load tests
-   make load-test
-   ```
-
-## Performance Characteristics
-
-- **Single Evaluation**: 1 image/s depending on model
-- **Batch Processing**: 5 image/s with significant speedup through vectorization
-- **Memory Usage**: 2-8GB depending on model configuration
-- **Throughput**: 100-500 requests/second (model dependent)
-- **Error Recovery**: Failed images don't interrupt batch processing
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Out of Memory**: Use smaller batch sizes or switch to 'fast' model
-2. **Model Loading Errors**: Check model configuration in `config/models.json`
-3. **Image Loading Failures**: Verify image URLs are accessible and formats supported
-4. **Ray Serve Issues**: Check Ray Dashboard at http://localhost:8265
-
-### Debug Mode
-
-```bash
-# Run with debug logging
-LOG_LEVEL=DEBUG python service/run_service.py
-
-# Check service logs
-docker-compose logs -f vision-language-similarity-service
 ```
 
 ### Performance Optimization
@@ -434,8 +349,7 @@ docker-compose logs -f vision-language-similarity-service
 - Use 'fast' model for development and real-time applications
 - Increase batch size for throughput (watch memory usage)
 - Enable mixed precision on CUDA devices (automatic)
-- Enable ensemble models for similarity calculation
-- Intelligent prompt classification
+- Ability to enable ensemble models for similarity calculation
 - Use Ray Serve for auto-scaling production workloads
 
 ## Future Improvements
@@ -448,21 +362,15 @@ docker-compose logs -f vision-language-similarity-service
 - **Connection Pooling**: Optimize HTTP client connection reuse
 
 ### Scalability & Production
-- **Graceful Shutdown**: Implement proper cleanup on service termination
-- **Health Checks**: Add comprehensive health monitoring including model status
 - **Auto-scaling**: Enhanced Ray Serve configuration for traffic-based scaling
 - **Multi-GPU Support**: Distribute models across multiple GPUs
-- **Distributed Caching**: Redis-based caching for multi-replica deployments
 
 ### Monitoring & Observability
-- **Enhanced Metrics**: Add model-specific performance and accuracy metrics
 - **Alerting**: Implement automated alerts for failures and performance degradation
 - **Distributed Tracing**: Complete OpenTelemetry integration across all components
 - **Performance Benchmarks**: Automated regression testing for performance
 - **Security Logging**: Audit logs for security events and access patterns
 
 ### Testing & Quality
-- **Test Coverage**: Expand coverage to include Ray Serve and error paths
 - **Load Testing**: Automated performance validation in CI/CD
-- **Security Testing**: Penetration testing and vulnerability scanning
 - **Chaos Engineering**: Fault injection testing for resilience validation

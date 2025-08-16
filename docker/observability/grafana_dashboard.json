@@ -823,6 +823,171 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max"],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, rate(vision_similarity_image_processing_seconds_bucket{app_name=\"vision_language_similarity_evaluator\"}[5m]))",
+          "interval": "",
+          "legendFormat": "{{source_type}} - P95",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.5, rate(vision_similarity_image_processing_seconds_bucket{app_name=\"vision_language_similarity_evaluator\"}[5m]))",
+          "interval": "",
+          "legendFormat": "{{source_type}} - P50",
+          "refId": "B"
+        }
+      ],
+      "title": "Image Processing Time by Source",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "vis": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "values": ["percent"]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (le) (rate(vision_similarity_batch_sizes_bucket{app_name=\"vision_language_similarity_evaluator\"}[5m]))",
+          "interval": "",
+          "legendFormat": "Batch size ≤{{le}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Batch Size Distribution",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
         "type": "loki",
         "uid": "loki"
       },
@@ -846,7 +1011,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "id": 7,
       "options": {
@@ -950,7 +1115,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 48
+        "y": 56
       },
       "id": 8,
       "options": {
@@ -1039,7 +1204,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 48
+        "y": 56
       },
       "id": 9,
       "options": {
@@ -1078,7 +1243,35 @@
     "observability"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(vision_similarity_requests_total, model_config)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Model Config",
+        "multi": true,
+        "name": "model_config",
+        "options": [],
+        "query": {
+          "query": "label_values(vision_similarity_requests_total, model_config)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-15m",

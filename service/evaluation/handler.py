@@ -1,12 +1,11 @@
 import asyncio
-from collections import defaultdict
-import logging
 import time
 
-from service.core import EvaluationResult, MinimalOpenCLIPEvaluator
+from service.core import EvaluationResult, OpenCLIPEvaluator
 from service.core.config import model_registry
 from service.core.exceptions import ServiceError
 from service.core.observability import get_metrics_middleware
+from service.log import get_logger
 
 from .schema import (
     BatchEvaluationRequest,
@@ -16,23 +15,23 @@ from .schema import (
     HealthResponse,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class EvaluationHandler:
     """Async handler for evaluation requests"""
 
     def __init__(self):
-        self._evaluators: dict[str, MinimalOpenCLIPEvaluator] = {}
+        self._evaluators: dict[str, OpenCLIPEvaluator] = {}
 
-    def _get_evaluator(self, model_config: str) -> MinimalOpenCLIPEvaluator:
+    def _get_evaluator(self, model_config: str) -> OpenCLIPEvaluator:
         """Get or create evaluator for given config"""
         if model_config not in self._evaluators:
             try:
                 # Validate config exists in registry
                 model_registry.get_model_spec(model_config)
                 # Create evaluator
-                self._evaluators[model_config] = MinimalOpenCLIPEvaluator(model_config_name=model_config)
+                self._evaluators[model_config] = OpenCLIPEvaluator(model_config_name=model_config)
             except ValueError as e:
                 available_configs = list(model_registry.list_available_models().keys())
                 raise ValueError(f"Unknown model configuration: {model_config}. Available: {available_configs}") from e
@@ -85,29 +84,12 @@ class EvaluationHandler:
         # Address multiple loading of same model concurrently
         # Use evaluator's native batch processing
 
-        FIXME: model config grouping added significant overhead. Needs investigation
+        FIXME: using native batch processing still cause a memory leak
         """
         start_time = time.time()
 
-        # tasks = [self.evaluate_single(eval_req) for eval_req in request.evaluations]
-        # results = await asyncio.gather(*tasks, return_exceptions=True)
-        config_groups = defaultdict(list)
-        for i, eval_req in enumerate(request.evaluations):
-            model_config = eval_req.model_config_name or "fast"
-            config_groups[model_config].append((i, eval_req))
-
-        # Process each group and collect results with original indices
-        all_results = {}
-        for _, indexed_requests in config_groups.items():
-            tasks = [self.evaluate_single(eval_req) for _, eval_req in indexed_requests]
-            group_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            # Map results back to original indices
-            for (original_index, _), result in zip(indexed_requests, group_results, strict=False):
-                all_results[original_index] = result
-
-        # Reconstruct results in original order
-        results = [all_results[i] for i in range(len(request.evaluations))]
+        tasks = [self.evaluate_single(eval_req) for eval_req in request.evaluations]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Handle any exceptions that occurred during processing
         final_results = []

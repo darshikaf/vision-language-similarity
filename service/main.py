@@ -10,6 +10,11 @@ from service.core.observability import (
     get_metrics_middleware,
     metrics_endpoint,
 )
+from service.log import get_logger, setup_logging
+
+# Setup logging
+setup_logging()
+logger = get_logger(__name__)
 
 app = FastAPI(
     title=APP_TITLE,

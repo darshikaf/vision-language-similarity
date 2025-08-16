@@ -2,11 +2,11 @@
 Device management utilities for optimal hardware utilization
 """
 
-import logging
-
 import torch
 
-logger = logging.getLogger(__name__)
+from service.log import get_logger
+
+logger = get_logger(__name__)
 
 
 class DeviceManager:

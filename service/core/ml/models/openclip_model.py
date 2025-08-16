@@ -1,6 +1,5 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import logging
 from pathlib import Path
 import time
 
@@ -13,8 +12,9 @@ from service.core.device_manager import DeviceManager
 from service.core.exceptions import ModelError, ValidationError
 from service.core.ml.models.base import SimilarityModel
 from service.core.observability import get_metrics_middleware
+from service.log import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OpenCLIPSimilarityModel(SimilarityModel):
@@ -180,7 +180,7 @@ class OpenCLIPSimilarityModel(SimilarityModel):
                 # 5. Calculate cosine similarity
                 raw_cosine = torch.cosine_similarity(image_features, text_features, dim=-1).item()
                 # TODO: Profile if below implementation is faster because L2 normalization is already applied
-                # raw_cosine = torch.sum(image_features * text_features, dim=-1).item()
+                # TODO: raw_cosine = torch.sum(image_features * text_features, dim=-1).item()
 
                 processing_time = (time.time() - start_time) * 1000
                 return raw_cosine, processing_time

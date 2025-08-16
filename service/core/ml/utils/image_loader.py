@@ -56,11 +56,6 @@ class ImageLoader:
         else:
             return await self._load_from_file(image_str)
 
-    # Synchronous fallback for compatibility
-    def load_image_sync(self, image_input: str | Image.Image | Path) -> Image.Image:
-        """Synchronous fallback method"""
-        return asyncio.run(self.load_image(image_input))
-
     @staticmethod
     def _is_url(path_str: str) -> bool:
         """Check if string is a URL"""

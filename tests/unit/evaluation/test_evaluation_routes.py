@@ -28,7 +28,7 @@ class TestEvaluationSingleRoute:
         })
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    @patch('service.evaluation.handler.MinimalOpenCLIPEvaluator')
+    @patch('service.evaluation.handler.OpenCLIPEvaluator')
     def test_single_evaluation_success(self, mock_evaluator_class):
         """Test successful single evaluation"""
         # Mock evaluator response
@@ -76,7 +76,7 @@ class TestEvaluationBatchRoute:
         })
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    @patch('service.evaluation.handler.MinimalOpenCLIPEvaluator')
+    @patch('service.evaluation.handler.OpenCLIPEvaluator')
     def test_batch_evaluation_success(self, mock_evaluator_class):
         """Test successful batch evaluation"""
         mock_evaluator = Mock()

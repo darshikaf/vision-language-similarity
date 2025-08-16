@@ -1,17 +1,17 @@
 import pytest
-from service.core import MinimalOpenCLIPEvaluator
+from service.core import OpenCLIPEvaluator
 
 
 @pytest.fixture(scope="session")
 def fast_evaluator():
     """Session-scoped fixture for fast evaluator to avoid reloading model"""
-    return MinimalOpenCLIPEvaluator.create_fast_evaluator()
+    return OpenCLIPEvaluator(model_config_name="fast")
 
 
 @pytest.fixture(scope="session") 
 def accurate_evaluator():
     """Session-scoped fixture for accurate evaluator"""
-    return MinimalOpenCLIPEvaluator.create_accurate_evaluator()
+    return OpenCLIPEvaluator(model_config_name="accurate")
 
 
 @pytest.fixture
