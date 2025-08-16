@@ -1,6 +1,6 @@
 from typing import Any
 
-from service.core.config import model_registry
+from service.core.ml.utils.config import model_registry
 from service.log import get_logger
 
 logger = get_logger(__name__)

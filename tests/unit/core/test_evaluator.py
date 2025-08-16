@@ -4,7 +4,7 @@ from PIL import Image
 
 from service.core.ml.engines.openclip_evaluator import OpenCLIPEvaluator
 from service.core.exceptions import ValidationError
-from service.core.config import CLIPModelSpec
+from service.core.ml.utils.config import CLIPModelSpec
 
 
 @pytest.fixture

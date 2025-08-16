@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from PIL import Image
 
-from service.core.device_manager import DeviceManager
+from service.core.ml.utils.device_manager import DeviceManager
 
 
 class SimilarityModel(ABC):

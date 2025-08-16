@@ -8,7 +8,7 @@ from PIL import Image
 import torch
 import torch.nn.functional as F  # noqa: F401, N812
 
-from service.core.device_manager import DeviceManager
+from service.core.ml.utils.device_manager import DeviceManager
 from service.core.exceptions import ModelError, ValidationError
 from service.core.ml.models.base import SimilarityModel
 from service.core.observability import get_metrics_middleware

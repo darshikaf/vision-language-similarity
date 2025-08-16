@@ -8,7 +8,7 @@ from service.core.exceptions import ValidationError
 from service.core.ml.utils.image_processor import ImageProcessor
 from service.core.ml.utils.metrics_recorder import MetricsRecorder
 from service.core.ml.utils.result_builder import ResultBuilder
-from service.core.types import EvaluationResult
+from service.core.ml.utils.types import EvaluationResult
 from service.log import get_logger
 
 from .base_evaluator import AbstractEvaluator

@@ -1,6 +1,6 @@
 from typing import Any
 
-from service.core.config import model_registry
+from service.core.ml.utils.config import model_registry
 from service.core.ml.models.base import SimilarityModel
 from service.core.ml.models.openclip_model import OpenCLIPSimilarityModel
 

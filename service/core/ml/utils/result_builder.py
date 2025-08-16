@@ -2,7 +2,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from service.core.types import EvaluationResult
+from service.core.ml.utils.types import EvaluationResult
 
 
 class ResultBuilder:

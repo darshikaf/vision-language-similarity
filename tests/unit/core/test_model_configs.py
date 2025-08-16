@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 import pytest
 
-from service.core.config import DynamicModelRegistry, CLIPModelSpec
+from service.core.ml.utils.config import DynamicModelRegistry, CLIPModelSpec
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@ from unittest.mock import patch, Mock
 import pytest
 
 from service.system.handler import get_model_info, get_system_status
-from service.core.config import CLIPModelSpec
+from service.core.ml.utils.config import CLIPModelSpec
 
 
 @pytest.fixture
