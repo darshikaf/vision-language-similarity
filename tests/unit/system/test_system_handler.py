@@ -12,9 +12,6 @@ def mock_model_spec():
         model_name="ViT-B-32",
         pretrained="laion2b_s34b_b79k",
         description="Test model",
-        memory_gb=2.0,
-        avg_inference_time_ms=100.0,
-        accuracy_score=0.85,
         enabled=True
     )
 
@@ -42,8 +39,7 @@ class TestGetModelInfo:
         # Check spec structure
         spec = result["spec"]
         expected_spec_keys = [
-            "model_name", "pretrained", "description",
-            "memory_gb", "avg_inference_time_ms", "accuracy_score", "enabled"
+            "model_name", "pretrained", "description", "enabled"
         ]
         for key in expected_spec_keys:
             assert key in spec
@@ -52,9 +48,6 @@ class TestGetModelInfo:
         assert spec["model_name"] == "ViT-B-32"
         assert spec["pretrained"] == "laion2b_s34b_b79k"
         assert spec["description"] == "Test model"
-        assert spec["memory_gb"] == 2.0
-        assert spec["avg_inference_time_ms"] == 100.0
-        assert spec["accuracy_score"] == 0.85
         assert spec["enabled"] is True
         
         # Check default values for simplified approach
@@ -75,9 +68,6 @@ class TestGetModelInfo:
                 model_name=f"Model-{config}",
                 pretrained=f"pretrained-{config}",
                 description=f"Description for {config}",
-                memory_gb=1.0,
-                avg_inference_time_ms=50.0,
-                accuracy_score=0.9,
                 enabled=True
             )
             mock_registry.get_model_spec.return_value = mock_spec
@@ -153,9 +143,6 @@ class TestSystemHandlerIntegration:
             model_name="ViT-B-32",
             pretrained="laion2b_s34b_b79k",
             description="Test model",
-            memory_gb=2.0,
-            avg_inference_time_ms=100.0,
-            accuracy_score=0.85,
             enabled=True
         )
         mock_available_models = {"test_config": {"model_name": "ViT-B-32"}}
@@ -183,9 +170,6 @@ class TestSystemHandlerIntegration:
                 model_name="ViT-B-32",
                 pretrained="laion2b_s34b_b79k",
                 description="Test model",
-                memory_gb=2.0,
-                avg_inference_time_ms=100.0,
-                accuracy_score=0.85,
                 enabled=True
             )
             mock_available_models = {"test_config": {"model_name": "ViT-B-32"}}

@@ -24,9 +24,6 @@ def get_model_info(config_name: str) -> dict[str, Any]:
             "model_name": spec.model_name,
             "pretrained": spec.pretrained,
             "description": spec.description,
-            "memory_gb": spec.memory_gb,
-            "avg_inference_time_ms": spec.avg_inference_time_ms,
-            "accuracy_score": spec.accuracy_score,
             "enabled": spec.enabled,
         },
         "loaded": False,  # Models are created on-demand, not pre-loaded

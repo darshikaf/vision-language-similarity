@@ -23,18 +23,12 @@ def sample_configmap_data():
                 "model_name": "ViT-B-16",
                 "pretrained": "laion2b_s34b_b88k",
                 "description": "Custom fast model",
-                "memory_gb": 3.0,
-                "avg_inference_time_ms": 75,
-                "accuracy_score": 0.87,
                 "enabled": True
             },
             "experimental": {
                 "model_name": "ViT-L-16",
                 "pretrained": "laion2b_s34b_b79k",
                 "description": "Experimental model",
-                "memory_gb": 8.0,
-                "avg_inference_time_ms": 300,
-                "accuracy_score": 0.95,
                 "enabled": True
             }
         }
@@ -50,9 +44,6 @@ def sample_env_config():
                 "model_name": "ViT-B-32",
                 "pretrained": "laion2b_s34b_b88k",
                 "description": "Model from environment variable",
-                "memory_gb": 2.5,
-                "avg_inference_time_ms": 60,
-                "accuracy_score": 0.86,
                 "enabled": True
             }
         }
@@ -97,9 +88,6 @@ class TestDynamicModelRegistry:
         assert spec.model_name == expected_model
         assert spec.pretrained == expected_pretrained
         assert spec.enabled is True
-        assert isinstance(spec.memory_gb, (int, float))
-        assert isinstance(spec.avg_inference_time_ms, (int, float))
-        assert isinstance(spec.accuracy_score, (int, float))
 
     def test_get_nonexistent_model_raises_error(self, registry):
         """Test error handling for non-existent model specifications"""

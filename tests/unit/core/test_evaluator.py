@@ -46,9 +46,6 @@ def mock_clip_model_spec():
         model_name="ViT-B-32",
         pretrained="laion2b_s34b_b79k",
         description="Test model",
-        memory_gb=2.0,
-        avg_inference_time_ms=100.0,
-        accuracy_score=0.85,
         enabled=True
     )
 

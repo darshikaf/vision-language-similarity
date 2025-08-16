@@ -16,9 +16,6 @@ class CLIPModelSpec:
     model_name: str
     pretrained: str
     description: str
-    memory_gb: float
-    avg_inference_time_ms: float
-    accuracy_score: float
     enabled: bool = True
 
 
@@ -36,17 +33,11 @@ class DynamicModelRegistry:
             model_name="ViT-B-32",
             pretrained="laion2b_s34b_b79k",
             description="Faster inference, good performance",
-            memory_gb=2.0,
-            avg_inference_time_ms=50,
-            accuracy_score=0.85,
         ),
         "accurate": CLIPModelSpec(
             model_name="ViT-L-14",
             pretrained="laion2b_s32b_b82k",
             description="Higher accuracy, slower inference",
-            memory_gb=6.0,
-            avg_inference_time_ms=200,
-            accuracy_score=0.92,
         ),
     }
 
