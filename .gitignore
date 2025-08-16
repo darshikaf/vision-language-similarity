@@ -141,10 +141,10 @@ tests/integration/.DS_Store
 .devcontainer
 uv.lock
 model-cache
+.ruff_cache
 
 # test data
 test-reports/
-tests/data/samples/*.png
 
 # coverage data
 coverage/
