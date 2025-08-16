@@ -1,5 +1,4 @@
 import asyncio
-from collections import defaultdict
 import time
 
 from service.core import EvaluationResult, OpenCLIPEvaluator

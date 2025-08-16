@@ -1,8 +1,8 @@
-from typing import Any, Dict
+from typing import Any
 
-from service.log import get_logger
 from service.core.ml.models import SimilarityModelFactory
 from service.core.ml.models.base import SimilarityModel
+from service.log import get_logger
 
 logger = get_logger(__name__)
 
@@ -10,59 +10,52 @@ logger = get_logger(__name__)
 class ModelManager:
     """
     Manages similarity model lifecycle and caching.
-    
+
     - Create models on demand
     - Cache model instances
     - Handle model configuration
     - Manage model cleanup (future)
     """
-    
+
     def __init__(self):
-        self._models: Dict[str, SimilarityModel] = {}
-    
-    def get_model(
-        self, 
-        config_name: str, 
-        device: str | None = None, 
-        **model_kwargs: Any
-    ) -> SimilarityModel:
+        self._models: dict[str, SimilarityModel] = {}
+
+    def get_model(self, config_name: str, device: str | None = None, **model_kwargs: Any) -> SimilarityModel:
         """
         Get or create a similarity model for the given configuration.
-        
+
         Args:
             config_name: Model configuration name
             device: Device for computation
             **model_kwargs: Additional model arguments
-            
+
         Returns:
             SimilarityModel instance
         """
         # Create cache key from config and device
         cache_key = f"{config_name}:{device or 'auto'}"
-        
+
         if cache_key not in self._models:
             logger.info(f"Creating new model for config: {config_name}")
-            self._models[cache_key] = SimilarityModelFactory.create_model(
-                config_name, device=device, **model_kwargs
-            )
+            self._models[cache_key] = SimilarityModelFactory.create_model(config_name, device=device, **model_kwargs)
             logger.info(f"Model created: {self._models[cache_key].model_name}")
-        
+
         return self._models[cache_key]
-    
+
     def has_model(self, config_name: str, device: str | None = None) -> bool:
         """Check if model exists in cache."""
         cache_key = f"{config_name}:{device or 'auto'}"
         return cache_key in self._models
-    
-    def get_cached_models(self) -> Dict[str, SimilarityModel]:
+
+    def get_cached_models(self) -> dict[str, SimilarityModel]:
         """Get all cached models."""
         return self._models.copy()
-    
+
     def clear_cache(self) -> None:
         """Clear all cached models."""
         logger.info(f"Clearing {len(self._models)} cached models")
         self._models.clear()
-    
+
     def remove_model(self, config_name: str, device: str | None = None) -> bool:
         """Remove specific model from cache."""
         cache_key = f"{config_name}:{device or 'auto'}"

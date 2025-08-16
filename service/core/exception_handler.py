@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable, Any
+from typing import Any
 
 from fastapi import HTTPException, status
 
@@ -16,6 +17,7 @@ def common_exception_handler(func: Callable) -> Callable:
     - ValueError: 400 Bad Request
     - Exception: 500 Internal Server Error
     """
+
     @wraps(func)
     async def inner_function(*args: Any, **kwargs: Any) -> Any:
         try:
@@ -30,9 +32,6 @@ def common_exception_handler(func: Callable) -> Callable:
             raise
         except Exception as e:
             logger.exception("Unexpected error in %s", func.__name__)
-            raise HTTPException(
-                status.HTTP_500_INTERNAL_SERVER_ERROR, 
-                "Internal server error"
-            ) from e
-    
+            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error") from e
+
     return inner_function

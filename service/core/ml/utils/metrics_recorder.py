@@ -1,6 +1,6 @@
 from service.core.exceptions import ServiceError
-from service.log import get_logger
 from service.core.observability import get_metrics_middleware
+from service.log import get_logger
 
 logger = get_logger(__name__)
 

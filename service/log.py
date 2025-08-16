@@ -10,21 +10,18 @@ def setup_logging(level: str = "INFO") -> None:
     Configure application-wide logging with consistent formatting.
     """
     log_level = getattr(logging, level.upper(), logging.INFO)
-    
+
     # Create formatter
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+
     # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
-    
+
     # Remove existing handlers to avoid duplicates
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     # Add console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
@@ -34,7 +31,7 @@ def setup_logging(level: str = "INFO") -> None:
 def get_logger(name: str = None) -> logging.Logger:
     """
     Get a logger instance for the given module.
-        
+
     Returns:
         Configured logger instance
     """

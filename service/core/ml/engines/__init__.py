@@ -6,6 +6,6 @@ from .openclip_evaluator import OpenCLIPEvaluator
 
 __all__ = [
     "AbstractEvaluator",
-    "OpenCLIPEvaluator", 
+    "OpenCLIPEvaluator",
     "ModelManager",
 ]

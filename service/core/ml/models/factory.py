@@ -58,4 +58,3 @@ class SimilarityModelFactory:
 
         model_class = cls._MODEL_REGISTRY[model_type]
         return model_class(**config)
-

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from service.core.exception_handler import common_exception_handler
-from service.log import get_logger
 from service.evaluation.handler import EvaluationHandler, get_handler
 from service.evaluation.schema import (
     BatchEvaluationRequest,
@@ -10,6 +9,7 @@ from service.evaluation.schema import (
     EvaluationResponse,
     HealthResponse,
 )
+from service.log import get_logger
 
 logger = get_logger(__name__)
 
