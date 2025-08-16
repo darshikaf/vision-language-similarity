@@ -51,9 +51,18 @@ A vision-language similarity evaluation service built with OpenCLIP models. This
 
 - **Single Evaluation**: 4.2 images/s depending on model
 - **Batch Processing**: 21.1 image/s
-- **Memory Usage**: 2-8GB depending on model configuration
-- **Throughput**: 100-500 requests/second (model dependent)
-- **Error Recovery**: Failed images don't interrupt batch processing
+
+- **Single evaluator memory footprint**: ~980-1015MB
+- **Memory persistence:** ~577MB remains after evaluator destruction (model weights)
+
+- **Single Evaluator Memory Pattern**:
+```
+Baseline RSS:       405MB (before model loading)
+After Model Load:   982MB (model weight loading)
+Peak RSS:          1012MB (after real image evaluation) 
+Memory Growth:       30MB (per evaluation session)
+Persistent Memory:  577MB (model weights remain after destruction)
+```
 
 ## Quick Start
 
