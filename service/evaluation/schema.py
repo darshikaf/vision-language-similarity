@@ -28,8 +28,8 @@ class BatchEvaluationRequest(BaseModel):
 class EvaluationResponse(BaseModel):
     """Single evaluation response"""
 
-    image_input: str = Field(..., description="Original image input")
-    text_prompt: str = Field(..., description="Original text prompt")
+    image_input: str = Field(..., description="Image input used for evaluation")
+    text_prompt: str = Field(..., description="Text prompt used for evaluation")
     clip_score: float = Field(..., description="CLIP similarity score (0-100)")
     processing_time_ms: float = Field(..., description="Processing time in milliseconds")
     error: str | None = Field(None, description="Error message if evaluation failed")

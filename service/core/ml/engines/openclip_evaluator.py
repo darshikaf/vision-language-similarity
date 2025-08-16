@@ -1,8 +1,7 @@
 """
 OpenCLIP-based evaluator implementation.
 
-Consolidated implementation that handles both single and batch evaluations
-for OpenCLIP models with clear, readable code structure.
+Handles both single and batch evaluations for OpenCLIP models.
 """
 import logging
 import time
@@ -27,11 +26,9 @@ logger = logging.getLogger(__name__)
 
 class OpenCLIPEvaluator(AbstractEvaluator):
     """
-    OpenCLIP evaluator with consolidated single and batch evaluation logic.
+    OpenCLIP evaluator for single and batch evaluation operations.
     
-    This implementation provides a clean, readable structure while maintaining
-    all the functionality of the original evaluator. All evaluation logic
-    is contained in a single class for easy understanding and maintenance.
+    Evaluates image-text similarity using OpenCLIP models.
     """
 
     def __init__(
