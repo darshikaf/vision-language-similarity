@@ -46,7 +46,11 @@ __IMPORTANT__: Dev set up is only supported for `ARM64/M1`.
 ```bash
 git clone <repository-url>
 cd vision-language-similarity
-bash dev-setup.sh
+
+chmod +x dev-setup.sh
+./dev-setup.sh
+
+source .venv/bin/activate
 ```
 
 2. **Run the service locally:**
