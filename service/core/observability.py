@@ -146,7 +146,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             "Application information",
             ["app_name", "version"],
         )
-        # Set app info (version to be added later)
+        # Set app info
         self.APP_INFO.labels(app_name=self.app_name, version="0.1.0").set(1)
 
         # Error pattern tracking

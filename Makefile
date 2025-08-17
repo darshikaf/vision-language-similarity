@@ -12,83 +12,77 @@ export PROJECT_ALIAS := evaluator
 .DEFAULT_GOAL := help
 
 # Development Setup
-dev-setup: ## Set up development environment
+dev-setup:
 	scripts/build.sh dev-setup
 
 # Build Targets
-build-base: ## Build base Docker image
+build-base:
 	scripts/build.sh build-base
 
-build-app: build-base ## Build application image
+build-app: build-base
 	scripts/build.sh build-app
 
-build-test: build-base ## Build test image
+build-test: build-base
 	scripts/build.sh build-test
 
 # Code Quality
-run-style: build-app ## Run style checks in Docker
+run-style: build-app
 	scripts/build.sh run-style
 
-run-style-inplace: ## Run style checks and fix in-place
+run-style-inplace:
 	scripts/build.sh run-style-inplace
 
-run-style-inplace-local: ## Run style checks locally with ruff
+run-style-inplace-local:
 	scripts/build.sh run-style-inplace-local
 
 # Testing
-run-unit-test-suite: build-test clean-docker-compose ## Run unit tests in Docker
+run-unit-test-suite: build-test clean-docker-compose
 	scripts/build.sh run-unit-test-suite
 
-run-integration-test-suite: build-test clean-docker-compose ## Run integration tests in Docker
+run-integration-test-suite: build-test clean-docker-compose
 	scripts/build.sh run-integration-test-suite
 
-run-unit-test-suite-local: ## Run unit tests locally
+run-unit-test-suite-local:
 	scripts/build.sh run-unit-test-suite-local
 
-unit-test: ## Alias for run-unit-test-suite
+unit-test:
 	scripts/build.sh run-unit-test-suite
 
-integration-test: ## Alias for run-integration-test-suite
+integration-test:
 	scripts/build.sh run-integration-test-suite
 
-unit-test-local: ## Alias for run-unit-test-suite-local
+unit-test-local:
 	scripts/build.sh run-unit-test-suite-local
 
 # Service Deployment
-run-local: clean-docker-compose ## Run FastAPI service locally
+run-local: clean-docker-compose
 	scripts/build.sh run-local
 
 # Docker Management
-clean-docker-images: ## Clean up Docker images
+clean-docker-images:
 	scripts/build.sh clean-docker-images
 
-clean-docker-compose: ## Clean up Docker Compose resources
+clean-docker-compose:
 	scripts/build.sh clean-docker-compose
 
-docker-push: ## Push Docker images to registry
-	scripts/build.sh docker-push
-
 # Observability Stack
-run-local-otel: ## Start observability stack (Grafana, Prometheus, Jaeger)
+run-local-otel: build-base build-app
 	scripts/build.sh run-local-otel
 
-stop-otel: ## Stop observability stack
+stop-otel:
 	scripts/build.sh stop-otel
 
-clean-otel: ## Clean observability stack and volumes
+clean-otel:
 	scripts/build.sh clean-otel
 
-test-otel: ## Test observability endpoints
-	scripts/build.sh test-otel
-
 # Ray Serve Deployment
-build-ray-base: ## Build Ray base image
+build-ray-base:
 	scripts/build.sh build-ray-base
 
-build-ray: build-ray-base ## Build Ray service image
+build-ray: build-ray-base
 	scripts/build.sh build-ray
 
-run-local-ray: build-ray ## Run Ray Serve deployment
+run-local-ray: build-ray
 	scripts/build.sh run-local-ray
 
 stop-ray: ## Stop Ray deployment
@@ -96,9 +90,6 @@ stop-ray: ## Stop Ray deployment
 
 clean-ray: ## Clean Ray deployment resources
 	scripts/build.sh clean-ray
-
-test-ray: ## Test Ray Serve deployment
-	scripts/build.sh test-ray
 
 # Load Testing
 load-test: ## Interactive load test (opens web UI)

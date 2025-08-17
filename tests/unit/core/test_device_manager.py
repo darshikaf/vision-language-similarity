@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from service.core.device_manager import DeviceManager
+from service.core.ml.utils.device_manager import DeviceManager
 
 
 @pytest.fixture

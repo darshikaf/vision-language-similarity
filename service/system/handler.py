@@ -1,6 +1,7 @@
 from typing import Any
 
-from service.core.config import model_registry
+from service.core.ml.utils.config import model_registry
+from service.core.ml.engines.model_manager import get_model_manager
 from service.log import get_logger
 
 logger = get_logger(__name__)
@@ -24,9 +25,6 @@ def get_model_info(config_name: str) -> dict[str, Any]:
             "model_name": spec.model_name,
             "pretrained": spec.pretrained,
             "description": spec.description,
-            "memory_gb": spec.memory_gb,
-            "avg_inference_time_ms": spec.avg_inference_time_ms,
-            "accuracy_score": spec.accuracy_score,
             "enabled": spec.enabled,
         },
         "loaded": False,  # Models are created on-demand, not pre-loaded
@@ -44,8 +42,11 @@ def get_system_status() -> dict[str, Any]:
     """
     available_configs = list(model_registry.list_available_models().keys())
 
+    model_manager = get_model_manager()
+    cached_models = model_manager.get_cached_models()
+
     return {
-        "cached_models": [],  # No caching in simplified approach
-        "loaded_models": [],  # Models created on-demand
+        "cached_models": [{"key": key, "model_name": model.model_name} for key, model in cached_models.items()],
+        "loaded_models": list(cached_models.keys()),
         "available_configs": available_configs,
     }

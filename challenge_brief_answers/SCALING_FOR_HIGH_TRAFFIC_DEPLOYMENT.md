@@ -42,10 +42,6 @@ Ray Serve's request batching capabilities significantly improve GPU utilization 
 
 The intelligent autoscaling means the system only uses resources when needed, automatically scaling down during low-traffic periods to minimize costs. Combined with spot instance support and preemptible workload scheduling, Ray Serve enables cost-effective operation even at massive scale.
 
-### Operational Advantages
-
-The config-driven deployment model means the entire application can be versioned, tested, and deployed through GitOps workflows. Blue-green deployments are natively supported, enabling zero-downtime updates and easy rollbacks. The framework's Kubernetes integration through KubeRay provides enterprise-grade operational capabilities including automated health checking, failure recovery, and upgrade management.
-
 **End-to-End Fault Tolerance**
 
 Ray Serve's Global Control Store (GCS) fault tolerance is a game-changer for production deployments. Ray Serve with GCS fault tolerance ensures that worker nodes continue serving traffic even when the head node crashes and recovers. This is critical for maintaining service availability during infrastructure failures at scale. The system leverages an external Redis cluster to persist cluster state, allowing seamless recovery without service interruption.

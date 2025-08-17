@@ -2,13 +2,14 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import time
+import threading
 
 import open_clip
 from PIL import Image
 import torch
 import torch.nn.functional as F  # noqa: F401, N812
 
-from service.core.device_manager import DeviceManager
+from service.core.ml.utils.device_manager import DeviceManager
 from service.core.exceptions import ModelError, ValidationError
 from service.core.ml.models.base import SimilarityModel
 from service.core.observability import get_metrics_middleware
@@ -39,7 +40,7 @@ class OpenCLIPSimilarityModel(SimilarityModel):
 
         # Thread pool for PyTorch operations
         self.max_workers = max_workers or 4
-        self._executor = ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="torch_")
+        self._executor = ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=f"openclip-{model_name}")
 
         # Initialize components with timing
         load_start_time = time.time()
@@ -178,9 +179,13 @@ class OpenCLIPSimilarityModel(SimilarityModel):
                 text_features = F.normalize(self.model.encode_text(text_tokens), p=2, dim=-1)
 
                 # 5. Calculate cosine similarity
-                raw_cosine = torch.cosine_similarity(image_features, text_features, dim=-1).item()
-                # TODO: Profile if below implementation is faster because L2 normalization is already applied
-                # TODO: raw_cosine = torch.sum(image_features * text_features, dim=-1).item()
+                # raw_cosine = torch.cosine_similarity(image_features, text_features, dim=-1).item()
+                # normalization is already applied
+                raw_cosine = torch.sum(image_features * text_features, dim=-1).item()
+
+                # Force GPU memory cleanup if using CUDA
+                if self.device.type == "cuda":
+                    torch.cuda.empty_cache()
 
                 processing_time = (time.time() - start_time) * 1000
                 return raw_cosine, processing_time

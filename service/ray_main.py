@@ -38,6 +38,11 @@ class VisionSimilarityService:
         self.logger.info("Initializing Ray Serve VisionSimilarityService")
 
 
+# Create the deployment object that can be imported
+# Should be removed if ray is running on Docker
+deployment = VisionSimilarityService.bind()
+
+
 def main():
     """Main entry point for Ray Serve deployment"""
 

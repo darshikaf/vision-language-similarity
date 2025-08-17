@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from service.core import EvaluationResult, OpenCLIPEvaluator
-from service.core.config import model_registry
+from service.core.ml.utils.config import model_registry
 from service.core.exceptions import ServiceError
 from service.core.observability import get_metrics_middleware
 from service.log import get_logger

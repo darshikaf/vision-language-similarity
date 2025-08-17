@@ -38,7 +38,7 @@ class TestSystemModelRoutes:
         
         # Verify model spec structure
         fast_spec = data["fast"]
-        required_fields = ["model_name", "pretrained", "enabled", "description", "memory_gb"]
+        required_fields = ["model_name", "pretrained", "enabled", "description"]
         for field in required_fields:
             assert field in fast_spec
 
@@ -164,16 +164,3 @@ class TestSystemRouteIntegration:
         """Test that model specifications include performance metrics"""
         response = client.get(SYSTEM_PATH + "/models/specs")
         assert response.status_code == status.HTTP_200_OK
-        
-        specs = response.json()
-        for model_name, spec in specs.items():
-            # Each spec should have performance information
-            assert "memory_gb" in spec
-            assert "avg_inference_time_ms" in spec
-            assert "accuracy_score" in spec
-            assert isinstance(spec["memory_gb"], (int, float))
-            assert isinstance(spec["avg_inference_time_ms"], (int, float))
-            assert isinstance(spec["accuracy_score"], (int, float))
-
-
-
