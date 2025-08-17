@@ -321,7 +321,6 @@ case "$OPTION" in
 		echo "Starting observability stack..."
 		echo "Grafana: http://localhost:3000 (admin/grafana)"
 		echo "Prometheus: http://localhost:9090"
-		echo "Jaeger: http://localhost:16686"
 		docker_compose -f docker/observability/docker-compose.otel.yml up --build --force-recreate
 		;;
 	stop-otel)

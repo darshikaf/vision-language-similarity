@@ -78,8 +78,8 @@ class OpenCLIPEvaluator(AbstractEvaluator):
         Args:
             image_input: Image source (URL, file path, or PIL Image)
             text_prompt: Text description to compare
-            image_loader: Optional async image loader instance (deprecated)
-            **kwargs: Additional arguments (unused, for interface compatibility)
+            image_loader: Optional async image loader instance
+            **kwargs: Additional arguments
 
         Returns:
             EvaluationResult with evaluation outcome
@@ -87,15 +87,12 @@ class OpenCLIPEvaluator(AbstractEvaluator):
         start_time = time.time()
 
         try:
-            # Step 1: Load and prepare image
             image = await self.image_processor.load_image(image_input, image_loader)
             source_type = self.image_processor.determine_source_type(image_input)
 
-            # Step 2: Run model inference
             clip_score, inference_time = await self.similarity_model.compute_similarity(image, text_prompt)
             total_time = (time.time() - start_time) * 1000
 
-            # Step 3: Record success metrics
             await self.metrics_recorder.record_success_metrics(
                 clip_score,
                 inference_time,
@@ -106,7 +103,6 @@ class OpenCLIPEvaluator(AbstractEvaluator):
                 self.similarity_model.model_name,
             )
 
-            # Step 4: Build success result
             return self.result_builder.create_success_result(image_input, text_prompt, clip_score, total_time)
 
         except Exception as error:
@@ -148,19 +144,14 @@ class OpenCLIPEvaluator(AbstractEvaluator):
         start_time = time.time()
 
         try:
-            # Step 1: Load all images concurrently
             loaded_images = await self.image_processor.load_images_batch(image_inputs)
 
-            # Step 2: Separate successful and failed image loads
             valid_images, valid_prompts, valid_inputs, results = self._separate_valid_invalid_images(
                 loaded_images, text_prompts, image_inputs
             )
 
-            # Step 3: Process valid images with batch optimization
             if valid_images:
                 success_results = await self._process_valid_batch(valid_images, valid_prompts, valid_inputs, start_time)
-
-                # Step 4: Merge results back in correct order
                 results = self._merge_results_in_order(loaded_images, results, success_results)
 
             return results

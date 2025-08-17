@@ -10,7 +10,7 @@ A vision-language similarity evaluation service built with OpenCLIP models. This
 - **Batch Processing**: Efficient batch evaluation with configurable batch sizes and progress tracking
 - **Multiple Model Configurations**: Support for different model profiles (fast vs accurate) with dynamic configuration
 - **Dual Deployment Options**: Standard FastAPI service or advanced Ray Serve deployment with auto-scaling
-- **Comprehensive Observability**: Prometheus metrics, Grafana dashboards, Jaeger tracing, and structured logging
+- **Comprehensive Observability**: Prometheus metrics, Grafana dashboards, and structured logging
 - **Load Testing**: Integrated load testing with Locust for performance validation
 
 ## Performance Characteristics on Apple M1

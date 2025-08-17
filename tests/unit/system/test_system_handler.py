@@ -3,6 +3,7 @@ import pytest
 
 from service.system.handler import get_model_info, get_system_status
 from service.core.ml.utils.config import CLIPModelSpec
+from service.core.ml.engines.model_manager import get_model_manager
 
 
 @pytest.fixture
@@ -14,6 +15,16 @@ def mock_model_spec():
         description="Test model",
         enabled=True
     )
+
+
+@pytest.fixture(autouse=True)
+def clear_model_cache():
+    """Clear model cache before each test to ensure isolation"""
+    model_manager = get_model_manager()
+    model_manager.clear_cache()
+    yield
+    # Optionally clear after test as well
+    model_manager.clear_cache()
 
 
 class TestGetModelInfo:

@@ -53,52 +53,60 @@ def mock_clip_model_spec():
 class TestOpenCLIPEvaluator:
     """Test OpenCLIPEvaluator functionality"""
 
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    def test_evaluator_initialization_with_config_name(self, mock_create_model):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    def test_evaluator_initialization_with_config_name(self, mock_get_model_manager):
         """Test evaluator initialization with model config name"""
         mock_similarity_model = Mock()
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
         assert evaluator.similarity_model == mock_similarity_model
-        mock_create_model.assert_called_once_with("fast", device=None)
+        mock_manager.get_model.assert_called_once_with("fast", device=None)
 
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    def test_evaluator_initialization_with_spec(self, mock_create_model, mock_clip_model_spec):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    def test_evaluator_initialization_with_spec(self, mock_get_model_manager, mock_clip_model_spec):
         """Test evaluator initialization with model spec"""
         mock_similarity_model = Mock()
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         # Pass model_spec as a kwarg since evaluator passes **model_kwargs to factory
         evaluator = OpenCLIPEvaluator(model_config_name="custom", model_spec=mock_clip_model_spec)
         
         assert evaluator.similarity_model == mock_similarity_model
-        mock_create_model.assert_called_once_with("custom", device=None, model_spec=mock_clip_model_spec)
+        mock_manager.get_model.assert_called_once_with("custom", device=None, model_spec=mock_clip_model_spec)
 
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    def test_evaluator_initialization_requires_config(self, mock_create_model):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    def test_evaluator_initialization_requires_config(self, mock_get_model_manager):
         """Test evaluator uses default config when none specified"""
         mock_similarity_model = Mock()
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         # Evaluator should use default "fast" config
         evaluator = OpenCLIPEvaluator()
         
         assert evaluator.model_config_name == "fast"
         assert evaluator.similarity_model == mock_similarity_model
-        mock_create_model.assert_called_once_with("fast", device=None)
+        mock_manager.get_model.assert_called_once_with("fast", device=None)
 
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_evaluate_single_success(self, mock_create_model, sample_image, sample_text_prompt):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_evaluate_single_success(self, mock_get_model_manager, sample_image, sample_text_prompt):
         """Test successful single evaluation"""
         # Mock similarity model
         mock_similarity_model = Mock()
         mock_similarity_model.compute_similarity = AsyncMock(return_value=(0.85, 50.0))  # (score, inference_time)
         mock_similarity_model.model_name = "ViT-B-32"
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         # Create mock image processor
         mock_image_processor = AsyncMock()
@@ -125,13 +133,15 @@ class TestOpenCLIPEvaluator:
         assert result.error is None
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_evaluate_single_image_loading_error(self, mock_create_model):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_evaluate_single_image_loading_error(self, mock_get_model_manager):
         """Test single evaluation with image loading error"""
         # Mock similarity model
         mock_similarity_model = Mock()
         mock_similarity_model.model_name = "ViT-B-32"
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         # Create mock image processor that raises error
         mock_image_processor = AsyncMock()
@@ -157,14 +167,16 @@ class TestOpenCLIPEvaluator:
         assert "Image loading failed" in result.error
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_evaluate_single_similarity_computation_error(self, mock_create_model, sample_image):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_evaluate_single_similarity_computation_error(self, mock_get_model_manager, sample_image):
         """Test single evaluation with similarity computation error"""
         # Mock similarity model to raise error
         mock_similarity_model = Mock()
         mock_similarity_model.compute_similarity = AsyncMock(side_effect=Exception("Model inference failed"))
         mock_similarity_model.model_name = "ViT-B-32"
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         # Create mock image processor
         mock_image_processor = AsyncMock()
@@ -189,13 +201,15 @@ class TestOpenCLIPEvaluator:
         assert "Model inference failed" in result.error
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_evaluate_batch_success(self, mock_create_model, sample_batch_images, sample_batch_prompts):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_evaluate_batch_success(self, mock_get_model_manager, sample_batch_images, sample_batch_prompts):
         """Test successful batch evaluation"""
         # Mock similarity model
         mock_similarity_model = Mock()
         mock_similarity_model.compute_batch_similarity = AsyncMock(return_value=([0.8, 0.7, 0.9], 45.0))  # (scores, inference_time)
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
@@ -208,11 +222,13 @@ class TestOpenCLIPEvaluator:
             assert result.error is None
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_evaluate_batch_length_mismatch(self, mock_create_model, sample_batch_images):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_evaluate_batch_length_mismatch(self, mock_get_model_manager, sample_batch_images):
         """Test batch evaluation with mismatched lengths"""
         mock_similarity_model = Mock()
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
@@ -223,11 +239,13 @@ class TestOpenCLIPEvaluator:
             await evaluator.evaluate_batch(sample_batch_images, mismatched_prompts)
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_evaluate_batch_empty_inputs(self, mock_create_model):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_evaluate_batch_empty_inputs(self, mock_get_model_manager):
         """Test batch evaluation with empty inputs"""
         mock_similarity_model = Mock()
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
@@ -236,13 +254,15 @@ class TestOpenCLIPEvaluator:
         assert len(results) == 0
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_evaluate_batch_with_batch_size(self, mock_create_model, sample_batch_images, sample_batch_prompts):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_evaluate_batch_with_batch_size(self, mock_get_model_manager, sample_batch_images, sample_batch_prompts):
         """Test batch evaluation with custom batch size"""
         # Mock similarity model to track calls
         mock_similarity_model = Mock()
         mock_similarity_model.compute_batch_similarity = AsyncMock(return_value=([0.8, 0.7, 0.9], 45.0))  # (scores, inference_time)
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
@@ -258,27 +278,31 @@ class TestOpenCLIPEvaluatorEdgeCases:
     """Test evaluator edge cases and error scenarios"""
 
     @pytest.mark.parametrize("model_config", ["fast", "accurate"])
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    def test_evaluator_with_different_configs(self, mock_create_model, model_config):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    def test_evaluator_with_different_configs(self, mock_get_model_manager, model_config):
         """Test evaluator with different model configurations"""
         mock_similarity_model = Mock()
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name=model_config)
         
         assert evaluator.similarity_model == mock_similarity_model
-        mock_create_model.assert_called_once_with(model_config, device=None)
+        mock_manager.get_model.assert_called_once_with(model_config, device=None)
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_evaluate_batch_partial_failure(self, mock_create_model):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_evaluate_batch_partial_failure(self, mock_get_model_manager):
         """Test batch evaluation with partial failures"""
         # Mock similarity model to fail on second item
         mock_similarity_model = Mock()
         mock_similarity_model.compute_batch_similarity = AsyncMock(side_effect=[
             Exception("Batch processing failed")
         ])
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
@@ -294,12 +318,14 @@ class TestOpenCLIPEvaluatorEdgeCases:
             assert result.error is not None
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_evaluate_single_with_pil_image(self, mock_create_model, sample_image):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_evaluate_single_with_pil_image(self, mock_get_model_manager, sample_image):
         """Test single evaluation with PIL Image instead of path"""
         mock_similarity_model = Mock()
         mock_similarity_model.compute_similarity = AsyncMock(return_value=(0.75, 50.0))  # (score, inference_time)
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
@@ -311,17 +337,20 @@ class TestOpenCLIPEvaluatorEdgeCases:
         assert result.error is None
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_clip_score_scaling(self, mock_create_model, sample_image):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_clip_score_scaling(self, mock_get_model_manager, sample_image):
         """Test CLIP score handling with different similarity values"""
         mock_similarity_model = Mock()
         # Test different similarity values
         test_similarities = [0.0, 0.5, 1.0, -0.1]  # Including negative value
         expected_scores = [0.0, 0.5, 1.0, -0.1]  # Raw values returned as-is
         
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
+        
         for similarity, expected_score in zip(test_similarities, expected_scores):
             mock_similarity_model.compute_similarity = AsyncMock(return_value=(similarity, 50.0))  # (score, inference_time)
-            mock_create_model.return_value = mock_similarity_model
             
             evaluator = OpenCLIPEvaluator(model_config_name="fast")
             result = await evaluator.evaluate_single(sample_image, "test prompt")
@@ -333,13 +362,15 @@ class TestOpenCLIPEvaluatorIntegration:
     """Test evaluator integration scenarios"""
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_mixed_evaluation_operations(self, mock_create_model, sample_image):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_mixed_evaluation_operations(self, mock_get_model_manager, sample_image):
         """Test mixing single and batch operations"""
         mock_similarity_model = Mock()
         mock_similarity_model.compute_similarity = AsyncMock(return_value=(0.8, 50.0))  # (score, inference_time)
         mock_similarity_model.compute_batch_similarity = AsyncMock(return_value=([0.7, 0.9], 45.0))  # (scores, inference_time)
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
@@ -354,14 +385,16 @@ class TestOpenCLIPEvaluatorIntegration:
         assert batch_results[1].clip_score == 0.9
 
     @pytest.mark.asyncio
-    @patch('service.core.ml.models.factory.SimilarityModelFactory.create_model')
-    async def test_concurrent_evaluations(self, mock_create_model, sample_image):
+    @patch('service.core.ml.engines.openclip_evaluator.get_model_manager')
+    async def test_concurrent_evaluations(self, mock_get_model_manager, sample_image):
         """Test concurrent evaluation operations"""
         import asyncio
         
         mock_similarity_model = Mock()
         mock_similarity_model.compute_similarity = AsyncMock(return_value=(0.8, 50.0))  # (score, inference_time)
-        mock_create_model.return_value = mock_similarity_model
+        mock_manager = Mock()
+        mock_manager.get_model.return_value = mock_similarity_model
+        mock_get_model_manager.return_value = mock_manager
         
         evaluator = OpenCLIPEvaluator(model_config_name="fast")
         
