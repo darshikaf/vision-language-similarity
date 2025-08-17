@@ -4,40 +4,6 @@ A vision-language similarity evaluation service built with OpenCLIP models. This
 
 **Documentation**: See `challenge_brief/` directory for detailed design decisions, scaling strategies, and similarity metric performance analysis.
 
-## Table of Contents
-
-- [Features](#features)
-- [Performance Characteristics on Apple M1](#performance-characteristics-on-apple-m1)
-- [Quick Start](#quick-start)
-  - [Prerequisites](#prerequisites)
-  - [Development Setup](#development-setup)
-  - [Ray Serve Deployment (Advanced ML Serving)](#ray-serve-deployment-advanced-ml-serving)
-- [API Usage](#api-usage)
-  - [Single Image Evaluation](#single-image-evaluation)
-  - [Batch Evaluation](#batch-evaluation)
-- [Command Line Interface](#command-line-interface)
-  - [Basic Usage](#basic-usage)
-  - [CSV File Format](#csv-file-format)
-  - [CLI Options](#cli-options)
-  - [Output](#output)
-  - [Example Run](#example-run)
-- [Development](#development)
-  - [Running Tests](#running-tests)
-  - [Code Quality](#code-quality)
-  - [Load Testing](#load-testing)
-- [Architecture](#architecture)
-  - [Standard FastAPI Service](#standard-fastapi-service)
-  - [Ray Serve Deployment](#ray-serve-deployment)
-  - [Core Components](#core-components)
-- [API Endpoints](#api-endpoints)
-- [CLIP Score Calculation](#clip-score-calculation)
-- [Future Improvements](#future-improvements)
-  - [Performance Optimization](#performance-optimization)
-  - [Scalability & Production](#scalability--production)
-  - [Monitoring & Observability](#monitoring--observability)
-  - [Testing & Quality](#testing--quality)
-
-
 ## Features
 
 - **CLIP Score Evaluation**: Calculate semantic similarity between images and text using state-of-the-art OpenCLIP models
@@ -80,13 +46,24 @@ __IMPORTANT__: Dev set up is only supported for `ARM64/M1`.
 ```bash
 git clone <repository-url>
 cd vision-language-similarity
-make dev-setup
+bash dev-setup.sh
 ```
 
 2. **Run the service locally:**
 
-#### Standard FastAPI Service
+#### Standard FastAPI Service on Apple M1
 
+```bash
+uvicorn service.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### Ray Serve Deployment on Apple M1
+
+```bash
+serve run service.ray_main:deployment
+```
+
+#### fastAPI Service with Observability on Docker
 ```bash
 # Build images
 make build-base
@@ -94,20 +71,6 @@ make build-app
 
 # Run service
 make run-local-otel
-
-# Or run directly on Python
-uvicorn service.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-#### Ray Serve Deployment
-
-```bash
-# Build Ray images
-make build-ray-base  
-make build-ray
-
-# Deploy Ray Serve
-make run-local-ray
 ```
 
 3. **Access the service:**
@@ -116,33 +79,6 @@ make run-local-ray
 - Metrics: http://localhost:8000/evaluator/metrics
 - Grafana Dashboard: http://localhost:3000/d/vision-language-similarity/vision-language-similarity-service
 
-### Ray Serve Deployment (Advanced ML Serving)
-
-For production ML workloads requiring enterprise-grade reliability and scaling:
-
-```bash
-# Build Ray Serve images
-make build-ray-base
-make build-ray
-
-# Run Ray Serve deployment
-make run-local-ray
-```
-
-**Advanced Production Features:**
-
-- **End-to-End Fault Tolerance**: Automatic replica recovery, distributed failure isolation, and graceful degradation
-- **Intelligent Load Shedding**: Dynamic request throttling based on system capacity and queue depth
-- **Request Queuing & Backpressure**: Adaptive queuing with automatic overflow handling and client backpressure
-- **Auto-scaling**: ML-aware scaling based on request patterns, queue depth, and processing characteristics
-- **Circuit Breaker Pattern**: Automatic failure detection with exponential backoff and recovery
-- **Multi-Model Serving**: Traffic splitting for A/B testing and canary deployments
-- **Resource Isolation**: Memory and compute isolation between model replicas
-
-**Monitoring & Control:**
-- Ray Dashboard: http://localhost:8265
-- API Documentation: http://localhost:8000/evaluator/docs
-- Replica health monitoring and automatic replacement
 
 ## API Usage
 
@@ -152,21 +88,20 @@ make run-local-ray
 curl -X POST "http://localhost:8000/evaluator/v1/evaluation/single" \
      -H "Content-Type: application/json" \
      -d '{
-       "image_input": "https://example.com/image.jpg",
-       "text_prompt": "A beautiful sunset over mountains",
+       "image_input": "https://cdn.leonardo.ai/users/566cd98a-7e64-47b1-ab9d-abda10a741a7/generations/cddf3436-81d5-46af-8680-4be5077a5841/Leonardo_Diffusion_A_little_girl_wearing_a_red_dress_smiled_Pl_0.jpg",
+       "text_prompt": "A little girl wearing a red dress smiled. Play with the lovely white rabbit. In a green forest. Butterflies and birds flying. On the side of the road, flowers are blooming brightly",
        "model_config_name": "fast"
-     }'
+     }' | jq
 ```
 
 **Response:**
 ```json
 {
-  "image_input": "https://example.com/image.jpg",
-  "text_prompt": "A beautiful sunset over mountains",
-  "clip_score": 82.5,
-  "processing_time_ms": 45.2,
-  "model_used": "fast",
-  "error": null
+  "image_input": "https://cdn.leonardo.ai/users/566cd98a-7e64-47b1-ab9d-abda10a741a7/generations/cddf3436-81d5-46af-8680-4be5077a5841/Leonardo_Diffusion_A_little_girl_wearing_a_red_dress_smiled_Pl_0.jpg",
+  "text_prompt": "A little girl wearing a red dress smiled. Play with the lovely white rabbit. In a green forest. Butterflies and birds flying. On the side of the road, flowers are blooming brightly",
+  "clip_score": 41.90204441547394,
+  "processing_time_ms": 1108.2000732421875,
+  "model_used": "fast"
 }
 ```
 
@@ -176,21 +111,25 @@ curl -X POST "http://localhost:8000/evaluator/v1/evaluation/single" \
 curl -X POST "http://localhost:8000/evaluator/v1/evaluation/batch" \
      -H "Content-Type: application/json" \
      -d '{
-       "evaluations": [
-         {
-           "image_input": "https://example.com/image1.jpg",
-           "text_prompt": "A cat sitting on a table",
-           "model_config_name": "fast"
-         },
-         {
-           "image_input": "https://example.com/image2.jpg", 
-           "text_prompt": "A dog running in a park",
-           "model_config_name": "accurate"
-         }
-       ],
-       "batch_size": 32,
-       "show_progress": true
-     }'
+      "evaluations": [
+        {
+          "image_input": "https://cdn.leonardo.ai/users/604cfbbb-25dc-4e07-998e-bcb92da145d3/generations/46babda8-86e6-480c-a43b-546e33d8fb20/Default_A_girl_studying_with_a_coffee_at_night_1.jpg",
+          "text_prompt": "A girl studying with a coffee at night",
+          "model_config_name": "fast"
+        },
+        {
+          "image_input": "https://cdn.leonardo.ai/users/b81d5101-fb09-4410-9f47-b8b9ed1335df/generations/176b3af7-3cb7-497d-8d8f-3bd14a7e4c01/Default_A_pile_of_bricks_on_the_floor_2.jpg",
+          "text_prompt": "A pile of bricks on the floor",
+          "model_config_name": "fast"
+        },
+        {
+          "image_input": "https://cdn.leonardo.ai/users/441e30e9-fe13-4f22-acaf-838135876ab7/generations/db00712b-deaf-463b-ba3a-759339dcf612/3D_Animation_Style_Cute_koala_bear_eating_bamboo_in_a_jungle_0.jpg",
+          "text_prompt": "Cute koala bear eating bamboo in a jungle",
+          "model_config_name": "fast"
+        }
+      ],
+      "batch_size": 2
+    }' | jq
 ```
 
 ## Command Line Interface
@@ -200,42 +139,11 @@ The repository includes a convenient CLI tool for batch evaluation of images wit
 ### Basic Usage
 
 ```bash
-# Evaluate images from a CSV file
-cd cli
-python evaluation_cli.py path/to/your_dataset.csv
-
-# Use batch evaluation (faster for multiple images)
-python evaluation_cli.py path/to/your_dataset.csv --batch --batch-size 32
-
 # Compare single vs batch performance
-python evaluation_cli.py path/to/your_dataset.csv --compare
-
-# Use custom service URL
-python evaluation_cli.py path/to/your_dataset.csv --service-url http://localhost:8000
+python cli/evaluation_cli.py cli/challenge_set.csv --compare
 ```
 
-### CSV File Format
-
-Your CSV file should contain at least these columns:
-- `url`: Image URL or file path
-- `caption`: Text description to compare with the image
-
-Example CSV:
-```csv
-url,caption
-https://example.com/image1.jpg,A cat sitting on a table
-https://example.com/image2.jpg,A dog running in a park
-/path/to/local/image.jpg,A beautiful sunset over mountains
-```
-
-### CLI Options
-
-- `--batch`: Use batch evaluation API (recommended for multiple images)
-- `--batch-size N`: Set batch size (default: 32)
-- `--compare`: Run both single and batch evaluation to compare performance
-- `--service-url URL`: Custom service URL (default: http://localhost:8000)
-
-### Output
+### Expected Output
 
 The CLI tool will:
 1. Process all images in your CSV file
@@ -243,29 +151,27 @@ The CLI tool will:
 3. Save results to `{filename}_with_scores.csv`
 4. Display processing statistics and performance metrics
 
-### Example Run
-
 ```bash
-➜ python cli/evaluation_cli.py tests/data/samples/challenge_set.csv --compare
-Processing: tests/data/samples/challenge_set.csv
-Data directory: tests/data/samples
+➜ python cli/evaluation_cli.py cli/challenge_set.csv --compare
+Processing: cli/challenge_set.csv
+Data directory: cli
 Loaded 51 rows
 Running comparison mode: both single and batch evaluation
 
 === Running Single Evaluation ===
 Single evaluation completed: 51/51 successful
-Time: 46.73s, Speed: 1.09 images/sec
+Time: 12.27s, Speed: 4.16 images/sec
 
 === Running Batch Evaluation ===
 Batch evaluation completed: 51/51 successful
-Time: 8.81s, Speed: 5.79 images/sec
-Comparison statistics saved to: tests/data/samples/challenge_set_comparison_stats.csv
+Time: 2.49s, Speed: 20.49 images/sec
+Comparison statistics saved to: cli/challenge_set_comparison_stats.csv
 
 === Performance Comparison ===
-Single: 46.73s (1.09 img/s)
-Batch:  8.81s (5.79 img/s)
-Speedup: 5.31x faster with batch
-Results saved to: tests/data/samples/challenge_set_with_scores.csv
+Single: 12.27s (4.16 img/s)
+Batch:  2.49s (20.49 img/s)
+Speedup: 4.93x faster with batch
+Results saved to: cli/challenge_set_with_scores.csv
 Successfully processed 51/51 images
 ```
 
@@ -276,13 +182,6 @@ Successfully processed 51/51 images
 ```bash
 # Run all tests with coverage locally
 python -m pytest tests/
-
-# Run unit tests in Docker
-make run-unit-test-suite
-
-# Run integration tests in Docker
-make run-integration-test-suite
-
 ```
 
 ### Code Quality
@@ -298,12 +197,6 @@ make run-style-inplace-local
 # Interactive load test with web UI
 make load-test
 # Web UI: http://localhost:8089
-
-# Light load test for development
-make load-test-light
-
-# CI/CD performance validation
-make load-test-ci
 ```
 
 ## Architecture
@@ -361,7 +254,7 @@ CLIP Score = max(100 * cosine_similarity(image_embedding, text_embedding), 0)
 - Ability to enable ensemble models for similarity calculation
 - Use Ray Serve for auto-scaling production workloads
 
-## Future Improvements
+## Future Improvements for Resiliency in Production
 
 ### Performance Optimization
 - **True Batch Processing**: Implement native PyTorch batching instead of concurrent single requests
@@ -379,7 +272,3 @@ CLIP Score = max(100 * cosine_similarity(image_embedding, text_embedding), 0)
 - **Distributed Tracing**: Complete OpenTelemetry integration across all components
 - **Performance Benchmarks**: Automated regression testing for performance
 - **Security Logging**: Audit logs for security events and access patterns
-
-### Testing & Quality
-- **Load Testing**: Automated performance validation in CI/CD
-- **Chaos Engineering**: Fault injection testing for resilience validation

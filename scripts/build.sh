@@ -136,7 +136,7 @@ IMAGE_NAME_LATEST=${REPOSITORY}:latest
 TEST_IMAGE_NAME=${REPOSITORY}:test.${VERSION}
 
 # Ray Serve image names
-RAY_BASE_IMAGE_VERSION=$(cat docker/ray-base.Dockerfile pyproject.toml | sha1sum | awk '{ print $1 }')
+RAY_BASE_IMAGE_VERSION=$(cat docker/ray/ray-base.Dockerfile pyproject.toml | sha1sum | awk '{ print $1 }')
 RAY_BASE_IMAGE_NAME=${REPOSITORY}:ray-base.${RAY_BASE_IMAGE_VERSION}
 RAY_IMAGE_NAME=${REPOSITORY}:ray.${VERSION}
 RAY_IMAGE_NAME_LATEST=${REPOSITORY}:ray.latest
@@ -194,7 +194,7 @@ case "$OPTION" in
 			--progress plain \
 			--no-cache \
 			-t ${TEST_IMAGE_NAME} \
-			-f docker/test.Dockerfile . \
+			-f docker/fastapi-testing/test.Dockerfile . \
 			|| exit $?
 		;;
 	build-ray-base)
@@ -207,7 +207,7 @@ case "$OPTION" in
 			docker build \
 				--progress plain \
 				-t ${RAY_BASE_IMAGE_NAME} \
-				-f docker/ray-base.Dockerfile .
+				-f docker/ray/ray-base.Dockerfile .
 		fi
 		;;
 	build-ray)
@@ -217,16 +217,18 @@ case "$OPTION" in
 			--progress plain \
 			-t ${RAY_IMAGE_NAME} \
 			-t ${RAY_IMAGE_NAME_LATEST} \
-			-f docker/ray-service.Dockerfile .
+			-f docker/ray/ray-service.Dockerfile .
 		;;
 	run-local)
-		docker_compose -f docker/docker-compose.service.yml -f docker/docker-compose.local.yml up \
+		docker_compose -f docker/fastapi-testing/docker-compose.service.yml -f docker/docker-compose.local.yml up \
 			--exit-code-from $PROJECT_ALIAS \
 			--force-recreate \
 			--always-recreate-deps
 		;;
 	run-ray-local)
-		docker_compose -f docker/docker-compose.ray-service.yml -f docker/docker-compose.ray-local.yml up \
+		# TODO: Create Ray docker-compose files
+		echo "Ray docker-compose files not yet created. Please create docker/ray/docker-compose.ray-service.yml and docker/ray/docker-compose.ray-local.yml"
+		# docker_compose -f docker/ray/docker-compose.ray-service.yml -f docker/ray/docker-compose.ray-local.yml up \
 			--exit-code-from $PROJECT_ALIAS \
 			--force-recreate \
 			--always-recreate-deps
@@ -249,7 +251,7 @@ case "$OPTION" in
 	run-integration-test-suite)
 		mkdir -p test-reports
 		TEST_IMAGE_NAME=${TEST_IMAGE_NAME} \
-		docker_compose -f docker/docker-compose.service.yml -f docker/docker-compose.integration-test.yml up \
+		docker_compose -f docker/fastapi-testing/docker-compose.service.yml -f docker/fastapi-testing/docker-compose.integration-test.yml up \
 			--exit-code-from $PROJECT_ALIAS \
 			--force-recreate \
 			--always-recreate-deps
@@ -257,7 +259,7 @@ case "$OPTION" in
 	run-unit-test-suite)
 		mkdir -p test-reports
 		TEST_IMAGE_NAME=${TEST_IMAGE_NAME} \
-		docker_compose -f docker/docker-compose.service.yml -f docker/docker-compose.unit-test.yml up \
+		docker_compose -f docker/fastapi-testing/docker-compose.service.yml -f docker/fastapi-testing/docker-compose.unit-test.yml up \
 			--exit-code-from $PROJECT_ALIAS \
 			--force-recreate \
 			--always-recreate-deps
@@ -279,10 +281,10 @@ case "$OPTION" in
 		;;
 	clean-docker-compose)
 		docker_compose \
-			-f docker/docker-compose.service.yml \
+			-f docker/fastapi-testing/docker-compose.service.yml \
 			-f docker/docker-compose.local.yml \
-			-f docker/docker-compose.unit-test.yml \
-			-f docker/docker-compose.integration-test.yml \
+			-f docker/fastapi-testing/docker-compose.unit-test.yml \
+			-f docker/fastapi-testing/docker-compose.integration-test.yml \
 			down --remove-orphans --volumes 2>/dev/null || true
 		;;
 	docker-push)

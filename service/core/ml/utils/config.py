@@ -60,7 +60,7 @@ class DynamicModelRegistry:
         logger.info(f"Loaded {len(self._models)} model configurations")
 
     def _load_from_file(self):
-        """Load from JSON file (Kubernetes ConfigMap mounted as volume)"""
+        """Load from JSON file"""
         try:
             config_path = Path(self.config_file_path)
             if config_path.exists():

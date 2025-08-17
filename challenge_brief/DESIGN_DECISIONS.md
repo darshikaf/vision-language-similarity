@@ -4,9 +4,9 @@
 
 **Runtime model loading** was selected over pre-baking models into Docker images to enable dynamic model management in production. While pre-baking offers faster startup times (~1s vs 6s), runtime loading provides flexibility for A/B testing, emergency model rollbacks, and separate model release cycles from application deployments. Alternative approaches include hybrid strategies (critical models pre-baked, others runtime), persistent volume mounting, or init container patterns, but these add operational complexity without addressing the need for hot-swappable model configurations.
 
-## Kubernetes ConfigMap Integration
+## Config Driven Dynamic model registry
 
-The implementation uses Kubernetes ConfigMaps loaded as environment variables, allowing the `DynamicModelRegistry` to dynamically reconfigure model specifications (model architecture, pretrained weights, performance characteristics) without code changes. To safely update models without redeployments, **Reloader** can be employed - a Kubernetes controller that automatically triggers rolling updates when ConfigMaps change. This ensures all pods restart gracefully with new environment variables, maintaining zero-downtime deployments while enabling real-time model configuration updates.
+The implementation uses a config driven approach, allowing the `DynamicModelRegistry` to dynamically reconfigure model specifications (model architecture, pretrained weights, performance characteristics) without code changes.
 
 ## Pluggable Model Architecture
 

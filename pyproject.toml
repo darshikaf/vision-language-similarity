@@ -56,6 +56,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "httpx>=0.24.0",  # For testing FastAPI endpoints
     "ruff>=0.1.0",
+    "locust>=2.20.0",
 ]
 test = [
     "pytest>=7.4.0",

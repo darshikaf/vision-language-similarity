@@ -65,11 +65,8 @@ clean-docker-images: ## Clean up Docker images
 clean-docker-compose: ## Clean up Docker Compose resources
 	scripts/build.sh clean-docker-compose
 
-docker-push: ## Push Docker images to registry
-	scripts/build.sh docker-push
-
 # Observability Stack
-run-local-otel: ## Start observability stack (Grafana, Prometheus, Jaeger)
+run-local-otel: build-base build-app ## Start observability stack (Grafana, Prometheus, Jaeger)
 	scripts/build.sh run-local-otel
 
 stop-otel: ## Stop observability stack
@@ -77,9 +74,6 @@ stop-otel: ## Stop observability stack
 
 clean-otel: ## Clean observability stack and volumes
 	scripts/build.sh clean-otel
-
-test-otel: ## Test observability endpoints
-	scripts/build.sh test-otel
 
 # Ray Serve Deployment
 build-ray-base: ## Build Ray base image
@@ -96,9 +90,6 @@ stop-ray: ## Stop Ray deployment
 
 clean-ray: ## Clean Ray deployment resources
 	scripts/build.sh clean-ray
-
-test-ray: ## Test Ray Serve deployment
-	scripts/build.sh test-ray
 
 # Load Testing
 load-test: ## Interactive load test (opens web UI)

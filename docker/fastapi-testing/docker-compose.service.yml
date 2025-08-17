@@ -2,7 +2,7 @@ name: vision-language-similarity-service
 services:
   evaluator:
     build:
-      context: ..
+      context: ../..
       dockerfile: docker/service.Dockerfile
     ports:
       - "8000:8000"

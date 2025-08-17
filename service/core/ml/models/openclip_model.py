@@ -40,6 +40,7 @@ class OpenCLIPSimilarityModel(SimilarityModel):
 
         # Thread pool for PyTorch operations
         self.max_workers = max_workers or 4
+        self._executor = ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix=f"openclip-{model_name}")
 
         # Initialize components with timing
         load_start_time = time.time()
