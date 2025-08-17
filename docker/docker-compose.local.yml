@@ -1,7 +1,8 @@
 name: vision-language-similarity-local
 services:
   evaluator:
-    image: ${IMAGE_NAME_LATEST}
+    image: local/vision_language_similarity_service:latest
+    command: uvicorn service.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
       - "8080:8080"  # Metrics port
@@ -57,7 +58,7 @@ services:
       # Optional: Mount source code for development
       - ../service:/app/service:ro
     env_file:
-      - ../.env.local
+      - ${PWD}/.env.local
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/evaluator/health"]
       interval: 30s

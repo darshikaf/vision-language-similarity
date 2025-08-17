@@ -533,8 +533,12 @@
                 "value": null
               },
               {
+                "color": "yellow",
+                "value": 2
+              },
+              {
                 "color": "red",
-                "value": 10
+                "value": 5
               }
             ]
           },
@@ -550,7 +554,6 @@
       },
       "id": 10,
       "options": {
-        "orientation": "auto",
         "reduceOptions": {
           "values": false,
           "calcs": [
@@ -558,25 +561,26 @@
           ],
           "fields": ""
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "text": {}
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto"
       },
-      "pluginVersion": "10.2.2",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, rate(vision_similarity_model_load_seconds_bucket{app_name=\"vision_language_similarity_evaluator\"}[5m]))",
+          "expr": "vision_similarity_model_load_time_seconds{app_name=\"vision_language_similarity_evaluator\"}",
           "interval": "",
-          "legendFormat": "{{model_config}} {{model_name}} - Model Load Time",
+          "legendFormat": "{{model_config}} {{model_name}}",
           "refId": "A"
         }
       ],
-      "title": "Model Loading Time P95",
-      "type": "gauge"
+      "title": "Model Load Times",
+      "type": "stat"
     },
     {
       "datasource": {

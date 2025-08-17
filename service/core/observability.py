@@ -72,12 +72,18 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0],
         )
 
-        # Model loading time
-        self.MODEL_LOAD_DURATION = Histogram(
-            "vision_similarity_model_load_seconds",
-            "Model loading and initialization time",
+        # Model loads counter with timing buckets
+        self.MODEL_LOADS_TOTAL = Counter(
+            "vision_similarity_model_loads_total",
+            "Total number of model loads with timing info",
+            ["model_config", "model_name", "load_time_bucket", "app_name"],
+        )
+
+        # Model load time gauge (shows most recent load time)
+        self.MODEL_LOAD_TIME_SECONDS = Gauge(
+            "vision_similarity_model_load_time_seconds",
+            "Most recent model load time in seconds",
             ["model_config", "model_name", "app_name"],
-            buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
         )
 
         # Model-specific error tracking
@@ -252,11 +258,32 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 
     def record_model_load_time(self, duration: float, model_config: str, model_name: str) -> None:
         """Record model loading time"""
-        self.MODEL_LOAD_DURATION.labels(
+        # Counter with timing buckets for counting loads
+        load_time_bucket = self._get_load_time_bucket(duration)
+        self.MODEL_LOADS_TOTAL.labels(
+            model_config=model_config,
+            model_name=model_name,
+            load_time_bucket=load_time_bucket,
+            app_name=self.app_name,
+        ).inc()
+
+        # Gauge for showing current load time (persistent)
+        self.MODEL_LOAD_TIME_SECONDS.labels(
             model_config=model_config,
             model_name=model_name,
             app_name=self.app_name,
-        ).observe(duration)
+        ).set(duration)
+
+    def _get_load_time_bucket(self, duration: float) -> str:
+        """Categorize load time into buckets for counter labels"""
+        if duration < 1.0:
+            return "fast"  # < 1s
+        elif duration < 5.0:
+            return "medium"  # 1-5s
+        elif duration < 10.0:
+            return "slow"  # 5-10s
+        else:
+            return "very_slow"  # > 10s
 
     def record_batch_efficiency(self, efficiency_ratio: float, model_config: str, model_name: str) -> None:
         """Record batch processing efficiency"""

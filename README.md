@@ -186,6 +186,10 @@ Successfully processed 51/51 images
 ```bash
 # Run all tests with coverage locally
 python -m pytest tests/
+
+# Or on Docker
+make run-unit-tests
+make run-integration-tests
 ```
 
 ### Code Quality
