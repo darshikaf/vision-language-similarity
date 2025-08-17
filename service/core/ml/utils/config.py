@@ -23,8 +23,8 @@ class DynamicModelRegistry:
     """
     Registry that can load model configurations from multiple sources:
     1. Built-in configurations (fallback)
-    2. JSON file (Kubernetes ConfigMap mounted as file)
-    3. Environment variables (Kubernetes ConfigMap as env vars)
+    2. JSON file
+    3. Environment variables
     """
 
     # Built-in default configurations (always available)
@@ -79,7 +79,7 @@ class DynamicModelRegistry:
             logger.warning(f"Could not load config from {self.config_file_path}: {e}")
 
     def _load_from_env(self):
-        """Load from environment variables (Kubernetes ConfigMap as env)"""
+        """Load from environment variables"""
         # Look for MODEL_CONFIG_<NAME> environment variables
         for env_var in os.environ:
             if env_var.startswith("MODEL_CONFIG_"):

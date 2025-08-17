@@ -16,9 +16,19 @@ class ModelManager:
     - Handle model configuration
     - Manage model cleanup (future)
     """
+    
+    _instance = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
 
     def __init__(self):
-        self._models: dict[str, SimilarityModel] = {}
+        if not self._initialized:
+            self._models: dict[str, SimilarityModel] = {}
+            self._initialized = True
 
     def get_model(self, config_name: str, device: str | None = None, **model_kwargs: Any) -> SimilarityModel:
         """
@@ -64,3 +74,9 @@ class ModelManager:
             del self._models[cache_key]
             return True
         return False
+
+
+# Global singleton instance access
+def get_model_manager() -> ModelManager:
+    """Get the global ModelManager singleton instance."""
+    return ModelManager()

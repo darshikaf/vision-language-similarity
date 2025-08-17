@@ -12,7 +12,7 @@ from service.core.ml.utils.types import EvaluationResult
 from service.log import get_logger
 
 from .base_evaluator import AbstractEvaluator
-from .model_manager import ModelManager
+from .model_manager import get_model_manager
 
 logger = get_logger(__name__)
 
@@ -49,7 +49,7 @@ class OpenCLIPEvaluator(AbstractEvaluator):
         self.model_kwargs = model_kwargs
 
         # Initialize shared resources
-        self.model_manager = ModelManager()
+        self.model_manager = get_model_manager()
         self.image_processor = image_processor or ImageProcessor()
         self.metrics_recorder = metrics_recorder or MetricsRecorder()
         self.result_builder = result_builder or ResultBuilder()
