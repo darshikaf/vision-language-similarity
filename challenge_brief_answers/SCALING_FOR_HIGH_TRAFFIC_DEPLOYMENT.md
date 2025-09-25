@@ -10,7 +10,7 @@ Current use case is ideal for Ray Serve deployment due to its compute-intensive 
 
 **Advanced Autoscaling with Request-Based Metrics**
 
-Ray Serve's autoscaling goes beyond simple CPU or memory metrics by monitoring actual request queue sizes and ongoing requests per replica. The autoscaler makes intelligent decisions based on target_ongoing_requests configuration, ensuring optimal resource utilization. For the vision-language similarity service, this means the system can automatically scale from hundreds to thousands of replicas based on actual demand, with separate scaling policies for fast and accurate model variants.
+Ray Serve's autoscaling goes beyond simple CPU or memory metrics by monitoring actual request queue sizes and ongoing requests per replica. The autoscaler makes intelligent decisions based on `target_ongoing_requests` configuration, ensuring optimal resource utilization. For the vision-language similarity service, this means the system can automatically scale from hundreds to thousands of replicas based on actual demand, with separate scaling policies for fast and accurate model variants.
 
 **Multi-Level Health Checking and Graceful Degradation**
 
@@ -18,7 +18,7 @@ Ray Serve provides sophisticated health checking at multiple levels. Beyond basi
 
 **Strategic Replica Distribution**
 
-The framework's max_replicas_per_node configuration ensures high availability by spreading replicas across multiple nodes and availability zones. This prevents single points of failure and maintains service capacity even during significant infrastructure outages.
+The framework's `max_replicas_per_node` configuration ensures high availability by spreading replicas across multiple nodes and availability zones. This prevents single points of failure and maintains service capacity even during significant infrastructure outages.
 
 **Dynamic Configuration Without Downtime**
 
@@ -48,4 +48,4 @@ Ray Serve's Global Control Store (GCS) fault tolerance is a game-changer for pro
 
 **Intelligent Load Shedding**
 
-One of Ray Serve's most powerful features for handling massive traffic is its built-in load shedding mechanism through the max_queued_requests parameter. When the system reaches capacity, it gracefully rejects new requests with HTTP 503 responses rather than allowing queues to grow indefinitely. This prevents cascade failures and maintains predictable latency even during traffic spikes. For a service handling hundreds of millions of requests, this feature is essential for system stability during viral content or unexpected traffic surges.
+One of Ray Serve's most powerful features for handling massive traffic is its built-in load shedding mechanism through the `max_queued_requests` parameter. When the system reaches capacity, it gracefully rejects new requests with HTTP 503 responses rather than allowing queues to grow indefinitely. This prevents cascade failures and maintains predictable latency even during traffic spikes. For a service handling hundreds of millions of requests, this feature is essential for system stability during viral content or unexpected traffic surges.
